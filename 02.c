@@ -10,6 +10,5 @@ int main(int argc, char** argv) {
 
   Arena* a = arena_alloc();
   arena_release(a);
-
   Dbg("done");
 }

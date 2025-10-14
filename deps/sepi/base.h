@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdlib.h>
+#include <string.h>
 
 typedef int8_t I8;
 typedef uint8_t U8;
@@ -135,6 +136,7 @@ void __asan_unpoison_memory_region(void const volatile* addr, size_t size);
 # define AsanUnpoisonMemoryRegion(addr, size) ((void)(addr), (void)(size))
 #endif /* DEBUG_MODE */
 
+#define SetMem0(s,z) memset((s),0,(z))
 
 /* ===================================================== */
 /*                         UNITS                         */

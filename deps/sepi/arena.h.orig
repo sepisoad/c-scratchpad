@@ -83,7 +83,6 @@ Nothing scratch_end(Scratch s);
 
 #ifdef SEPI_ARENA_IMPLEMENTATION
 
-// TODO: review this function
 Arena*
 arena_alloc_(ArenaParams* ap) {
   /* U32 const cpu_cores = platform_get_cpu_cores(); */
@@ -121,7 +120,6 @@ arena_alloc_(ArenaParams* ap) {
   return a;
 }
 
-// TODO: review this function
 Nothing
 arena_release(Arena* a) {
   for(Arena* it = a->curr, *prev = 0; it != NULL; it = prev) {
@@ -130,7 +128,6 @@ arena_release(Arena* a) {
   }
 }
 
-// TODO: review this function
 RawPtr
 arena_push(Arena* a, U64 size, U64 align, Bool with_zero) {
   Arena* curr = a->curr;
@@ -163,7 +160,7 @@ arena_push(Arena* a, U64 size, U64 align, Bool with_zero) {
       new = arena_alloc(.reserve_size = reserve_size,
                         .commit_size = commit_size
 #ifdef DEBUG_MODE
-                                       ,
+                        ,
                         .caller_file_name = curr->caller_file_name,
                         .caller_file_line = curr->caller_file_line
 #endif /* DEBUG_MODE */
@@ -210,34 +207,29 @@ arena_push(Arena* a, U64 size, U64 align, Bool with_zero) {
   return result;
 }
 
-// TODO: implement this function
 Nothing
 arena_pop(Arena* a, U64 amount) {
   Ignore(a);
   Ignore(amount);
 }
 
-// TODO: implement this function
 Nothing
 arena_pop_to(Arena* a, U64 position) {
   Ignore(a);
   Ignore(position);
 }
 
-// TODO: implement this function
 Nothing
 arena_clear(Arena* a) {
   Ignore(a);
 }
 
-// TODO: implement this function
 U64
 arena_get_position(Arena* a) {
   Ignore(a);
   return 0;
 }
 
-// TODO: implement this function
 Scratch
 scratch_begin(Arena* a) {
   Ignore(a);
@@ -246,7 +238,6 @@ scratch_begin(Arena* a) {
   };
 }
 
-// TODO: implement this function
 Nothing
 scratch_end(Scratch s) {
   Ignore(s);

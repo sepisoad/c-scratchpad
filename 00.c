@@ -24,8 +24,10 @@ static void print_foo_(Params* p) {
 #define print_foo(...) print_foo_(&(Params){.age = 120, .alive = FALSE, .gender = Female, __VA_ARGS__})
 
 int main(int argc, char** argv) {
-  /* sassert(1 == 0, dummy); */ /* YAAAY */
-  sassert(TRUE == 1, is_true);
+  Ignore(argc);
+  Ignore(argv);
+  // StaticAssert(1 == 0, dummy); /* YAAAY */
+  StaticAssert(TRUE == 1, is_true);
   print_foo(.age = 38, .alive = TRUE, .gender = Male);
   print_foo();
   print_foo(.age = 18);

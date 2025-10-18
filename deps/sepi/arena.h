@@ -21,8 +21,8 @@
 
 typedef struct ArenaParams ArenaParams;
 struct ArenaParams {
-  U64 reserve_size;
-  U64 commit_size;
+  U64 requested_reserve_size;
+  U64 requested_commit_size;
 #ifdef DEBUG_MODE
   CStr caller_file_name;
   U32 caller_file_line;
@@ -31,15 +31,19 @@ struct ArenaParams {
 
 typedef struct Arena Arena;
 struct Arena {
-  Arena* prev;
-  Arena* curr;
+  Arena* previous;
+  Arena* current;
   Arena* free_last;
-  U64 commit_size;
-  U64 reserve_size;
+
+  U64 requested_commit_size;
+  U64 committed_size;
+
+  U64 requested_reserve_size;
+  U64 reserved_size;
+
   U64 base_position;
   U64 position;
-  U64 commit;
-  U64 reserve;
+
 #ifdef DEBUG_MODE
   CStr caller_file_name;
   U32 caller_file_line;
@@ -67,9 +71,9 @@ Scratch scratch_begin(Arena* a);
 Nothing scratch_end(Scratch s);
 
 #ifdef DEBUG_MODE
-#define arena_alloc(...) arena_alloc_(&(ArenaParams){.reserve_size = ARENA_DEFAULT_RESERVE_SIZE, .commit_size = ARENA_DEFAULT_COMMIT_SIZE, .caller_file_name = __FILE__, .caller_file_line = __LINE__, __VA_ARGS__})
+#define arena_alloc(...) arena_alloc_(&(ArenaParams){.requested_reserve_size = ARENA_DEFAULT_RESERVE_SIZE, .requested_commit_size = ARENA_DEFAULT_COMMIT_SIZE, .caller_file_name = __FILE__, .caller_file_line = __LINE__, __VA_ARGS__})
 #else
-#define arena_alloc(...) arena_alloc_(&(ArenaParams){.reserve_size = ARENA_DEFAULT_RESERVE_SIZE, .commit_size = ARENA_DEFAULT_COMMIT_SIZE, __VA_ARGS__})
+#define arena_alloc(...) arena_alloc_(&(ArenaParams){.requested_reserve_size = ARENA_DEFAULT_RESERVE_SIZE, .requested_commit_size = ARENA_DEFAULT_COMMIT_SIZE, __VA_ARGS__})
 #endif /* DEBUG_MODE */
 
 #define push_array_no_zero_aligned(arena, type, count, alignment) (type *)arena_push((arena), sizeof(type) * (count), (alignment), (True))
@@ -83,120 +87,124 @@ Nothing scratch_end(Scratch s);
 
 #ifdef SEPI_ARENA_IMPLEMENTATION
 
-// TODO: review this function
 Arena*
 arena_alloc_(ArenaParams* ap) {
-  /* U32 const cpu_cores = platform_get_cpu_cores(); */
-  /* U64 const page_size = platform_get_page_size(); */
-  U64 const large_page_size = platform_get_large_page_size();
+  // TODO: uncomment this
+  // U64 const large_page_size = platform_get_large_page_size();
+  U64 const large_page_size = 4;
 
-  /* TODO: this uses large pages size by default */
-  U64 reserve_size = AlignUp(ap->reserve_size, large_page_size);
-  U64 commit_size = AlignUp(ap->commit_size, large_page_size);
+  // TODO: this uses large pages size by default
+  U64 requested_reserve_size = AlignUp(ap->requested_reserve_size, large_page_size);
+  U64 requested_commit_size = AlignUp(ap->requested_commit_size, large_page_size);
 
-  RawPtr base = platform_reserve_large_pages(reserve_size);
-  platform_commit_large_pages(base, commit_size);
+  RawPtr base = platform_reserve_large_pages(requested_reserve_size);
+  platform_commit_large_pages(base, requested_commit_size);
 
   if(!base) {
     Abort("failed to allocate memory to arena allocator");
   }
 
-  Sz sz = sizeof(Arena);
+  Sz arena_header_size = sizeof(Arena);
   Arena* a = (Arena*)base;
-  a->curr = a;
+
+  a->current = a;
   a->free_last = 0;
-  a->commit_size = ap->commit_size;
-  a->reserve_size = ap->reserve_size;
+
+  a->requested_reserve_size = ap->requested_reserve_size;
+  a->reserved_size = requested_reserve_size;
+
+  a->requested_commit_size = ap->requested_commit_size;
+  a->committed_size = requested_commit_size;
+
   a->base_position = 0;
-  a->position = sz;
-  a->commit = commit_size;
-  a->reserve = reserve_size;
+  a->position = arena_header_size;
+
 #ifdef DEBUG_MODE
   a->caller_file_name = ap->caller_file_name;
   a->caller_file_line = ap->caller_file_line;
 #endif /* DEBUG_MODE */
 
-  AsanPoisonMemoryRegion(base, commit_size);
-  AsanUnpoisonMemoryRegion(base, sz);
+  AsanPoisonMemoryRegion(base, requested_commit_size);
+  AsanUnpoisonMemoryRegion(base, arena_header_size);
   return a;
 }
 
-// TODO: review this function
 Nothing
 arena_release(Arena* a) {
-  for(Arena* it = a->curr, *prev = 0; it != NULL; it = prev) {
-    prev = it->prev;
-    platform_release(it, it->reserve);
+  for(Arena* it = a->current, *previous = 0; it != 0; it = previous) {
+    previous = it->previous;
+    platform_release(it, it->reserved_size);
   }
 }
 
 // TODO: review this function
 RawPtr
 arena_push(Arena* a, U64 size, U64 align, Bool with_zero) {
-  Arena* curr = a->curr;
-  U64 position_previous = AlignUp(curr->position, align);
-  U64 position_post = position_previous + size;
+  Arena* current_block = a->current;
+  U64 position_aligned = AlignUp(current_block->position, align);
+  U64 position_aligned_sized = position_aligned + size;
 
-  if(curr->reserve < position_post) {
-    Arena* new = 0;
-    Arena* prev;
-    for(new = a->free_last, prev = 0; new != 0; prev = new, new = new->prev) {
-      if(new->reserve >= AlignUp(new->position, align) + size) {
-        if(prev) {
-          prev->prev = new->prev;
+  if(current_block->reserved_size < position_aligned_sized) {
+    Arena* new_block = 0;
+    Arena* previous_block;
+
+    for(new_block = a->free_last, previous_block = 0; new_block != 0; previous_block = new_block, new_block = new_block->previous) {
+      if(new_block->reserved_size >= AlignUp(new_block->position, align) + size) {
+        if(previous_block) {
+          previous_block->previous = new_block->previous;
         } else {
-          a->free_last = new->prev;
+          a->free_last = new_block->previous;
         }
         break;
       }
     }
 
 
-    if(new == 0) {
+    if(new_block == 0) {
       Sz tsize = sizeof(Arena);
-      U64 reserve_size = curr->reserve_size;
-      U64 commit_size = curr->commit_size;
-      if(size + tsize > reserve_size) {
-        reserve_size = AlignUp(size + tsize, align);
-        commit_size = AlignUp(size + tsize, align);
+      U64 requested_reserve_size = current_block->requested_reserve_size;
+      U64 requested_commit_size = current_block->requested_commit_size;
+      if(size + tsize > requested_reserve_size) {
+        requested_reserve_size = AlignUp(size + tsize, align);
+        requested_commit_size = AlignUp(size + tsize, align);
       }
-      new = arena_alloc(.reserve_size = reserve_size,
-                        .commit_size = commit_size
+      new_block = arena_alloc(.requested_reserve_size = requested_reserve_size,
+                              .requested_commit_size = requested_commit_size
 #ifdef DEBUG_MODE
-                                       ,
-                        .caller_file_name = curr->caller_file_name,
-                        .caller_file_line = curr->caller_file_line
+                                ,
+                              .caller_file_name = current_block->caller_file_name,
+                              .caller_file_line = current_block->caller_file_line
 #endif /* DEBUG_MODE */
-                       );
+                             );
     }
 
-    new->base_position = curr->base_position + curr->reserve;
-    new->prev = a->curr;
-    a->curr = new;
-    curr = new;
-    position_previous = AlignUp(curr->position, align);
-    position_post = position_previous + size;
+    new_block->base_position = current_block->base_position + current_block->reserved_size;
+    new_block->previous = a->current;
+    a->current = new_block;
+    current_block = new_block;
+    position_aligned = AlignUp(current_block->position, align);
+    position_aligned_sized = position_aligned + size;
   }
 
   U64 size_to_zero = 0;
   if(with_zero) {
-    size_to_zero = Min(curr->commit, position_post) - position_previous;
+    size_to_zero = Min(current_block->committed_size, position_aligned_sized) - position_aligned;
   }
 
-  if(curr->commit < position_post) {
-    U64 commit_post_aligned = position_post + curr->commit_size - 1;
-    commit_post_aligned -= commit_post_aligned % curr->commit_size;
-    U64 commit_post_clamped = Max(commit_post_aligned, curr->reserve);
-    U64 commit_size = commit_post_clamped - curr->commit;
-    U8* commit_ptr = (U8*)curr + curr->commit;
-    platform_commit_large_pages(commit_ptr, commit_size);
-    curr->commit = commit_post_clamped;
+  if(current_block->committed_size < position_aligned_sized) {
+    U64 new_commit_size = position_aligned_sized + current_block->requested_commit_size - 1;
+    new_commit_size -= new_commit_size % current_block->requested_commit_size;
+    U64 commit_size_clamped = Max(new_commit_size, current_block->reserved_size);
+    U64 needed_commit_size = commit_size_clamped - current_block->committed_size;
+    U8* committed_size_ptr = (U8*)current_block + current_block->committed_size;
+    platform_commit_large_pages(committed_size_ptr, needed_commit_size);
+    current_block->committed_size = commit_size_clamped;
   }
 
   RawPtr result = 0;
-  if(curr->commit >= position_post) {
-    result = (U8*)curr + position_previous;
-    curr->position = position_post;
+  if(current_block->committed_size >= position_aligned_sized) {
+    result = (U8*)current_block + position_aligned;
+    current_block->position = position_aligned_sized;
     AsanUnpoisonMemoryRegion(result, size);
     if(size_to_zero != 0) {
       SetMem0(result, size_to_zero);

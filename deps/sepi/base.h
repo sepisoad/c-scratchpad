@@ -235,7 +235,8 @@ void __asan_unpoison_memory_region(void const volatile* addr, size_t size);
     }                           \
   } while (0)
 
-#define StaticAssert(COND, ID) internal U8 Glue(ID, __LINE__)[(COND)?1:-1]
+// #define StaticAssert(COND, ID) internal U8 Glue(ID, __LINE__)[(COND)?1:-1]
+#define StaticAssert(COND, ID) typedef char Glue(ID, __LINE__)[(COND)?1:-1]
 
 /* ===================================================== */
 /*                     DEBUG LOGGER                      */

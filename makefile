@@ -1,12 +1,19 @@
-FLAGS := -DDEBUG -Wall -std=c11
+TCC_FLAGS := -DDEBUG -Wall -std=std11 $(INCS)
+GCC_WARNS := -Wall -Wextra -Wno-override-init -Wno-unused-local-typedefs
+GCC_SAN   := -fsanitize=address,undefined,leak -fno-omit-frame-pointer
+GCC_FLAGS := -std=gnu11 -g3 -O0  -DDEBUG $(GCC_WARNS) $(GCC_SAN)
 
 all: 02
 
 build:
-	@gcc -std=c11 -g3 -O0 -Wall -Wextra -DDEBUG -o out 02.c
+	@gcc $(GCC_FLAGS) -o out 02.c
 00:
-	@tcc $(FLAGS) -b -bt -run 00.c
+	@tcc $(TCC_FLAGS) -b -bt -run 00.c
 01:
-	@tcc $(FLAGS) -b -bt -run 01.c
+	@tcc $(TCC_FLAGS) -b -bt -run 01.c
 02:
-	@tcc $(FLAGS) -b -bt -run 02.c
+	@tcc $(TCC_FLAGS) -b -bt -run 02.c
+03:
+	@tcc $(TCC_FLAGS) -b -bt -run 03.c
+
+

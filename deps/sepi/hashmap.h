@@ -1,40 +1,82 @@
 #ifndef SEPI_HASHMAP_H
 #define SEPI_HASHMAP_H
 
-#include "base.h"
-#include "garena.h"
+/* ===================================================== */
+/*                     DEPENDENCIES                      */
+/* ===================================================== */
 
-typedef enum HashMapResult HashMapResult;
-enum HashMapResult {
-  HashMapResultSuccess = 0,
-  HashMapResultNotFound,
-  HashMapResultUnknown,
+#include "base.h"
+#include "string.h"
+#include "arena.h"
+#include "../rapidhash/rapidhash.h"
+
+/* ===================================================== */
+/*                         TYPES                         */
+/* ===================================================== */
+
+typedef struct HashMapKV HashMapKV;
+struct HashMapKV {
+  union {
+    Str8 k_str;
+    RawPtr k_rawptr;
+    U32 k_u32;
+    U64 k_u64;
+  };
+  union {
+    Str8 v_str;
+    RawPtr v_rawptr;
+    U32 v_u32;
+    U64 v_u64;
+  };
 };
 
 typedef struct HashMapNode HashMapNode;
 struct HashMapNode {
-  CStr key;
-  Ptr val;
   HashMapNode* next;
+  HashMapKV kv;
+};
+
+typedef struct HashMapList HashMapList;
+struct HashMapList {
+  HashMapNode* first;
+  HashMapNode* last;
 };
 
 typedef struct HashMap HashMap;
 struct HashMap {
-  HashMapNode** buckets;
-  Sz bucket_count;
-  Sz entry_count;
-  GArena* arena;
+  U64 count;
+  U64 capacity;
+  HashMapList* list;
+  HashMapList free_list;
 };
 
 /* ===================================================== */
 /*                          API                          */
 /* ===================================================== */
 
-HashMapResult hashmap_create(HashMap* hm, GArena* ga, Sz init);
-HashMapResult hashmap_destroy(HashMap* hm);
-HashMapResult hashmap_add(HashMap* hm, CStr key, Ptr ival);
-HashMapResult hashmap_get(HashMap* hm, CStr key, Ptr oval);
-HashMapResult hashmap_del(HashMap* hm, CStr key);
+HashMap* hashmap_init(Arena* a, U64 cap);
+Nothing hashmap_purge(HashMap *hm);
+HashMapNode* hashmap_push(Arena* a, HashMap* hm, U64 hash, HashMapKV kv);
+HashMapNode* hashmap_push_str8_str8(Arena *a, HashMap* hm, Str8 key,
+                                    Str8 value);
+HashMapNode* hashmap_push_str8_rawptr(Arena *a, HashMap* hm, Str8 key,
+                                      RawPtr value);
+HashMapNode* hashmap_push_str8_u32(Arena *a, HashMap* hm, Str8 key, U32 value);
+HashMapNode* hashmap_push_str8_u64(Arena *a, HashMap* hm, Str8 key, U64 value);
+HashMapNode* hashmap_push_u32_str8(Arena *a, HashMap* hm, U32 key, Str8 value);
+HashMapNode* hashmap_push_u32_u32(Arena *a, HashMap* hm, U32 key, U32 value);
+HashMapNode* hashmap_push_u32_u64(Arena *a, HashMap* hm, U32 key, U64 value);
+HashMapNode* hashmap_push_u32_rawptr(Arena *a, HashMap* hm, U32 key,
+                                     RawPtr value);
+HashMapNode* hashmap_push_u64_str8(Arena *a, HashMap* hm, U64 key, Str8 value);
+HashMapNode* hashmap_push_u64_u32(Arena *a, HashMap* hm, U64 key, U32 value);
+HashMapNode* hashmap_push_u64_u64(Arena *a, HashMap* hm, U64 key, U64 value);
+HashMapNode* hashmap_push_u64_rawptr(Arena *a, HashMap* hm, U64 key,
+                                     RawPtr value);
+HashMapKV* hashmap_find_str8(HashMap* hm, Str8 key);
+HashMapKV* hashmap_find_u32(HashMap* hm, U32 key);
+HashMapKV* hashmap_find_u64(HashMap* hm, U64 key);
+HashMapKV* hashmap_find_rawptr(HashMap* hm, RawPtr key);
 
 /* ===================================================== */
 /*                    IMPLEMENTATION                     */
@@ -42,87 +84,247 @@ HashMapResult hashmap_del(HashMap* hm, CStr key);
 
 #ifdef SEPI_HASHMAP_IMPLEMENTATION
 
-#include <string.h>
-
-static inline Sz
-hashmap_next_power_of_2(Sz n) {
-  if(n==0) return 1;
-  n--;
-  n |= n >> 1;
-  n |= n >> 2;
-  n |= n >> 4;
-  n |= n >> 8;
-  n |= n >> 16;
-  n |= n >> 32;
-  return n + 1;
+internal Nothing
+hashmap_list_concat_in_place(HashMapList* to, HashMapList* from) {
+  if (from->first) {
+    if (to->first) {
+      to->last->next = from->first;
+      to->last = from->last;
+    } else {
+      to->first = from->first;
+      to->last = from->last;
+    }
+    MemZeroStruct(from);
+  }
 }
 
-static inline U64
-hashmap_hash(CStr key) {
-  U64 hash = 14695981039346656037ULL;
-  for(; *key; ++key) {
-    hash ^= (U64)*key;
-    hash *= 1099511628211ULL;
+internal HashMapNode*
+hashmap_list_pop(HashMapList* hml) {
+  HashMapNode* hmn = hml->first;
+
+  if (hml->first == hml->last) {
+    hml->first = 0;
+    hml->last = 0 ;
+  } else {
+    hml->first = hml->first->next;
   }
 
-  return hash;
+  return hmn;
 }
 
-HashMapResult
-hashmap_create(HashMap* hm, GArena* ga, Sz init_cap) {
-  notnull(hm);
-  notnull(ga);
-  notzero(init_cap);
-
-  Sz cap = hashmap_next_power_of_2(init_cap);
-
-  memset(hm, 0, sizeof(*hm));
-  hm->arena = ga;
-  hm->bucket_count = cap;
-  hm->entry_count = 0;
-
-  Sz sz = sizeof(HashMapNode*) * hm->bucket_count;
-  hm->buckets = (HashMapNode**)garena_alloc(ga, sz, alignof(HashMapNode*));
-  notnull(hm->buckets);
-
-  memset(hm->buckets, 0, sizeof(HashMapNode*) * hm->bucket_count);
-  return HashMapResultSuccess;
+internal U64
+hashmap_hasher(Str8 str) {
+  // return rapidhash_withSeed(str.cstr, str.size, 1987);
+  return rapidhash(str.cstr, str.size);
 }
 
-HashMapResult
-hashmap_destroy(HashMap* hm) {
-  return HashMapResultSuccess;
+HashMap*
+hashmap_init(Arena* a, U64 capacity) {
+  HashMap* hm = push_array(a, HashMap, 1);
+  hm->capacity = capacity;
+  hm->list = push_array(a, HashMapList, capacity);
+  return hm;
 }
 
-HashMapResult
-hashmap_add(HashMap* hm, CStr key, Ptr ival) {
-  return HashMapResultSuccess;
+Nothing
+hashmap_purge(HashMap *hm) {
+  hm->count = 0;
+
+  for (U64 i = 0; i < hm->capacity; ++i) {
+    hashmap_list_concat_in_place(&hm->free_list, &hm->list[i]);
+  }
 }
 
-HashMapResult
-hashmap_get(HashMap* hm, CStr key, Ptr oval) {
-  notnull(hm);
-  notnull(key);
-  notnull(oval);
+HashMapNode*
+hashmap_push(Arena* a, HashMap* hm, U64 hash, HashMapKV kv) {
+  HashMapNode* hmn;
 
-  U64 hash = hashmap_hash(key);
-  Sz idx = hash % hm->bucket_count;
-  HashMapNode* node = hm->buckets[idx];
-  for(; node; node = node -> next) {
-    if(strcmp(node->key, key) == 0) {
-      /* *oval = node->val; */ /* SEPI: FIX IT */
-      return HashMapResultSuccess;
+  if (hm->free_list.first != 0) {
+    hmn = hashmap_list_pop(&hm->free_list);
+  } else {
+    hmn = push_array(a, HashMapNode, 1);
+  }
+
+  hmn->next = 0;
+  hmn->kv = kv;
+
+  U64 i = hash % hm->capacity;
+
+  if (hm->list[i].first == 0) {
+    hm->list[i].first = hm->list[i].last = hmn;
+    hmn->next = 0;
+  } else {
+    hm->list[i].last->next = hmn;
+    hm->list[i].last = hmn;
+    hmn->next = 0;
+  }
+
+  hm->count += 1;
+
+  return hmn;
+}
+
+HashMapNode*
+hashmap_push_str8_str8(Arena *a, HashMap* hm, Str8 key, Str8 value) {
+  U64 hash = hashmap_hasher(key);
+  return hashmap_push(a, hm, hash, (HashMapKV) {
+    .k_str = key, .v_str = value
+  });
+}
+
+HashMapNode*
+hashmap_push_str8_rawptr(Arena *a, HashMap* hm, Str8 key, RawPtr value) {
+  U64 hash = hashmap_hasher(key);
+  return hashmap_push(a, hm, hash, (HashMapKV) {
+    .k_str = key, .v_rawptr = value
+  });
+}
+
+HashMapNode*
+hashmap_push_str8_u32(Arena *a, HashMap* hm, Str8 key, U32 value) {
+  U64 hash = hashmap_hasher(key);
+  return hashmap_push(a, hm, hash, (HashMapKV) {
+    .k_str = key, .v_u32 = value
+  });
+}
+
+HashMapNode*
+hashmap_push_str8_u64(Arena *a, HashMap* hm, Str8 key, U64 value) {
+  U64 hash = hashmap_hasher(key);
+  return hashmap_push(a, hm, hash, (HashMapKV) {
+    .k_str = key, .v_u64 = value
+  });
+}
+
+
+HashMapNode*
+hashmap_push_u32_str8(Arena *a, HashMap* hm, U32 key, Str8 value) {
+  Str8 strkey = str8_raw(&key, sizeof(key));
+  U64 hash = hashmap_hasher(strkey);
+  return hashmap_push(a, hm, hash, (HashMapKV) {
+    .k_u32 = key, .v_str = value
+  });
+}
+
+HashMapNode*
+hashmap_push_u32_u32(Arena *a, HashMap* hm, U32 key, U32 value) {
+  Str8 strkey = str8_raw(&key, sizeof(key));
+  U64 hash = hashmap_hasher(strkey);
+  return hashmap_push(a, hm, hash, (HashMapKV) {
+    .k_u32 = key, .v_u32 = value
+  });
+}
+
+HashMapNode*
+hashmap_push_u32_u64(Arena *a, HashMap* hm, U32 key, U64 value) {
+  Str8 strkey = str8_raw(&key, sizeof(key));
+  U64 hash = hashmap_hasher(strkey);
+  return hashmap_push(a, hm, hash, (HashMapKV) {
+    .k_u32 = key, .v_u64 = value
+  });
+}
+
+HashMapNode*
+hashmap_push_u32_rawptr(Arena *a, HashMap* hm, U32 key, RawPtr value) {
+  Str8 strkey = str8_raw(&key, sizeof(key));
+  U64 hash = hashmap_hasher(strkey);
+  return hashmap_push(a, hm, hash, (HashMapKV) {
+    .k_u32 = key, .v_rawptr = value
+  });
+}
+
+HashMapNode*
+hashmap_push_u64_str8(Arena *a, HashMap* hm, U64 key, Str8 value) {
+  Str8 strkey = str8_raw(&key, sizeof(key));
+  U64 hash = hashmap_hasher(strkey);
+  return hashmap_push(a, hm, hash, (HashMapKV) {
+    .k_u64 = key, .v_str = value
+  });
+}
+
+HashMapNode*
+hashmap_push_u64_u32(Arena *a, HashMap* hm, U64 key, U32 value) {
+  Str8 strkey = str8_raw(&key, sizeof(key));
+  U64 hash = hashmap_hasher(strkey);
+  return hashmap_push(a, hm, hash, (HashMapKV) {
+    .k_u64 = key, .v_u32 = value
+  });
+}
+
+HashMapNode*
+hashmap_push_u64_u64(Arena *a, HashMap* hm, U64 key, U64 value) {
+  Str8 strkey = str8_raw(&key, sizeof(key));
+  U64 hash = hashmap_hasher(strkey);
+  return hashmap_push(a, hm, hash, (HashMapKV) {
+    .k_u64 = key, .v_u64 = value
+  });
+}
+
+HashMapNode*
+hashmap_push_u64_rawptr(Arena *a, HashMap* hm, U64 key, RawPtr value) {
+  Str8 strkey = str8_raw(&key, sizeof(key));
+  U64 hash = hashmap_hasher(strkey);
+  return hashmap_push(a, hm, hash, (HashMapKV) {
+    .k_u64 = key, .v_rawptr = value
+  });
+}
+
+//====
+
+HashMapKV*
+hashmap_find_str8(HashMap* hm, Str8 key) {
+  U64 hash = hashmap_hasher(key);
+  U64 i = hash % hm->capacity;
+  HashMapList* list = hm->list + i;
+  for (HashMapNode *hmn = list->first; hmn != 0; hmn = hmn->next) {
+    if (str8_cmp(hmn->kv.k_str, key, 0)) {
+      return &hmn->kv;
     }
   }
-
-  return HashMapResultNotFound;
+  return 0;
 }
 
-HashMapResult
-hashmap_del(HashMap* hm, CStr key) {
-  return HashMapResultSuccess;
+HashMapKV*
+hashmap_find_u32(HashMap* hm, U32 key) {
+  Str8 strkey = str8_raw(&key, sizeof(key));
+  U64 hash = hashmap_hasher(strkey);
+  U64 i = hash % hm->capacity;
+  HashMapList *list = hm->list + i;
+  for (HashMapNode *hmn = list->first; hmn != 0; hmn = hmn->next) {
+    if (hmn->kv.k_u32 == key) {
+      return &hmn->kv;
+    }
+  }
+  return 0;
 }
 
+HashMapKV*
+hashmap_find_u64(HashMap* hm, U64 key) {
+  Str8 strkey = str8_raw(&key, sizeof(key));
+  U64 hash = hashmap_hasher(strkey);
+  U64 i = hash % hm->capacity;
+  HashMapList *list = hm->list + i;
+  for (HashMapNode *hmn = list->first; hmn != 0; hmn = hmn->next) {
+    if (hmn->kv.k_u64 == key) {
+      return &hmn->kv;
+    }
+  }
+  return 0;
+}
+
+HashMapKV*
+hashmap_find_rawptr(HashMap* hm, RawPtr key) {
+  Str8 strkey = str8_raw(&key, sizeof(key));
+  U64 hash = hashmap_hasher(strkey);
+  U64 i = hash % hm->capacity;
+  HashMapList *list = hm->list + i;
+  for (HashMapNode *hmn = list->first; hmn != 0; hmn = hmn->next) {
+    if (hmn->kv.k_rawptr == key) {
+      return &hmn->kv;
+    }
+  }
+  return 0;
+}
 
 /* ===================================================== */
 /*                          END                          */

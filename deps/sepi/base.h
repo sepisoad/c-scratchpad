@@ -136,19 +136,27 @@ void __asan_unpoison_memory_region(void const volatile* addr, size_t size);
 # define AsanUnpoisonMemoryRegion(addr, size) ((void)(addr), (void)(size))
 #endif /* DEBUG_MODE */
 
-#define SetMem0(s,z) memset((s),0,(z))
+#define MemZero(s,z) memset((s),0,(z))
+#define MemZeroStruct(s) MemZero((s),sizeof(*(s)))
+#define MemZeroArray(a) MemZero((a),sizeof(a))
+#define MemZeroTyped(m,c) MemZero((m),sizeof(*(m))*(c))
+
+#define MemoryCompare(a, b, size) memcmp((a), (b), (size))
+#define IsMemoryEq(a,b,z) (MemoryCompare((a),(b),(z)) == 0)
+#define IsStructEq(a,b) IsMemoryEq((a),(b),sizeof(*(a)))
+#define IsArrayEq(a,b) IsMemoryEq((a),(b),sizeof(a))
 
 /* ===================================================== */
 /*                         UNITS                         */
 /* ===================================================== */
 
-#define KB(n)  (((U64)(n)) << 10)
-#define MB(n)  (((U64)(n)) << 20)
-#define GB(n)  (((U64)(n)) << 30)
-#define TB(n)  (((U64)(n)) << 40)
-#define Thousand(n)   ((n)*1000)
-#define Million(n)    ((n)*1000000)
-#define Billion(n)    ((n)*1000000000)
+#define KB(n) (((U64)(n)) << 10)
+#define MB(n) (((U64)(n)) << 20)
+#define GB(n) (((U64)(n)) << 30)
+#define TB(n) (((U64)(n)) << 40)
+#define Thousand(n) ((n)*1000)
+#define Million(n) ((n)*1000000)
+#define Billion(n) ((n)*1000000000)
 
 /* ===================================================== */
 /*                         UTILS                         */
@@ -202,7 +210,7 @@ void __asan_unpoison_memory_region(void const volatile* addr, size_t size);
 #define NotNull(val) MakeSure((val), "<<NULL>>")
 #define NotZero(val) MakeSure((val), "<<ZERO>>")
 #define IsValid(val) MakeSure((val), "<<INVALID>>")
-#define MustDie(msg, ...) MakeSure(false, msg, ##__VA_ARGS__)
+#define MustDie(msg, ...) MakeSure(FALSE, msg, ##__VA_ARGS__)
 
 #else /* not debug mode */
 
@@ -235,8 +243,26 @@ void __asan_unpoison_memory_region(void const volatile* addr, size_t size);
     }                           \
   } while (0)
 
-// #define StaticAssert(COND, ID) internal U8 Glue(ID, __LINE__)[(COND)?1:-1]
+#if CC_MSVC
+#define Trap() __debugbreak()
+#elif CC_CLANG || CC_GCC
+#define Trap() __builtin_trap()
+#elif CC_TCC
+#define Trap() (*(volatile int*)0 = 0)
+#else
+#error unsupported compiler
+#endif
+
 #define StaticAssert(COND, ID) typedef char Glue(ID, __LINE__)[(COND)?1:-1]
+
+#define AssertAlways(x) do{if(!(x)) {Trap();}}while(0)
+
+#ifdef DEBUG_MODE
+# define Assert(x) AssertAlways(x)
+#else /* DEBUG_MODE */
+# define Assert(x) (void)(x)
+#endif
+
 
 /* ===================================================== */
 /*                     DEBUG LOGGER                      */

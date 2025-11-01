@@ -1,56 +1,56 @@
-#define SEPI_DBGALLOC_IMPLEMENTATION
+// LD_PRELOAD=/opt/gcc/15.2.0/lib64/libasan.so ./out
+
+#include <stdlib.h>
+#include <stdio.h>
+
 #define SEPI_PLATFORM_IMPLEMENTATION
+#define SEPI_STRING_IMPLEMENTATION
 #define SEPI_ARENA_IMPLEMENTATION
+#define SEPI_HASHMAP_IMPLEMENTATION
 
-#include "deps/sepi/arena.h"
+#include "deps/sepi/hashmap.h"
 
-static Arena* _g_arena = NULL;
+int
+main(void) {
+  Arena* a = arena_alloc(.requested_reserve_size = 256,
+                         .requested_commit_size = 256);
 
-void func_a() {
-  ArenaScratch s = arena_scratch_begin(_g_arena);
-  Arena* a = s.arena;
+  HashMap* hm = hashmap_init(a, 256);
 
-  U8* c1 = arena_push(a, sizeof(U8), sizeof(U8), FALSE);
-  U8* c2 = arena_push(a, sizeof(U8), sizeof(U8), FALSE);
-  U8* c3 = arena_push(a, sizeof(U8), sizeof(U8), FALSE);
-  U8* c4 = arena_push(a, sizeof(U8), sizeof(U8), FALSE);
+  hashmap_push_u32(a, hm, str8("sepi"), 38);
+  hashmap_push_u32(a, hm, str8("yasin"), 43);
+  hashmap_push_u32(a, hm, str8("amin"), 45);
+  hashmap_push_u32(a, hm, str8("mooa"), 67);
+  hashmap_push_u32(a, hm, str8("booa"), 71);
 
-  *c1 = 's';
-  *c2 = 'e';
-  *c3 = 'p';
-  *c4 = 'i';
+  Str8* keys = hashmap_keys(a, hm);
 
-  printf("%c%c%c%c\n", *c1, *c2, *c3, *c4);
-  arena_scratch_end(s);
-}
-
-int main(int argc, char** argv) {
-  Ignore(argc);
-  Ignore(argv);
-
-  _g_arena = arena_alloc(.requested_reserve_size = 4,
-                         .requested_commit_size = 4);
-  Arena* a = _g_arena;
-  {
-    U32* num1 = arena_push(a, sizeof(U32), sizeof(U32), FALSE);
-    *num1 = 1987;
-    U32* num2 = arena_push(a, sizeof(U32), sizeof(U32), FALSE);
-    *num2 = 1366;
-
-    func_a();
-    printf("%d\n", *num1);
-    printf("%d\n", *num2);
+  for (U64 i = 0; i < hm->count; i++) {
+    HashMapKV* kv = hashmap_find(hm, keys[i]);
+    printf("%5s:  %d\n", kv->k_str.cstr, kv->v_u32);
   }
 
-  arena_pop(a, sizeof(U32) * 200);
+  printf("-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\n");
 
-  for (U32 i = 0; i < 1000000; i++) {
-    arena_push(a, sizeof(U32), sizeof(U32), FALSE);
+  HashMapKV kv2 = hashmap_pop(hm, str8("yasin"));
+  printf("%5s:  %d\n", kv2.k_str.cstr, kv2.v_u32);
+
+  printf("-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\n");
+
+  kv2 = hashmap_pop(hm, str8("yasin"));
+  printf("%5s:  %d\n", kv2.k_str.cstr, kv2.v_u32);
+
+  printf("-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\n");
+
+  keys = hashmap_keys(a, hm);
+  for (U64 i = 0; i < hm->count; i++) {
+    HashMapKV* kv = hashmap_find(hm, keys[i]);
+    if (!kv) continue;
+    printf("%5s:  %d\n", kv->k_str.cstr, kv->v_u32);
   }
 
-  printf("yay!\n");
 
+  hashmap_purge(hm);
   arena_release(a);
-
   return 0;
 }

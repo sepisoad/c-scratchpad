@@ -6,13 +6,13 @@ GCC_SAN   := -fsanitize=address,undefined,leak -fno-omit-frame-pointer -static-l
 GCC_FLAGS := -std=gnu11 -g3 -O0  -DDEBUG $(GCC_WARNS) $(GCC_SAN)
 FILC_FLAGS := -std=gnu11 -g3 -O0  -DDEBUG $(GCC_WARNS)
 
-all: filc exec
+all: san exec
 
 san:
-	@$(CC) $(GCC_FLAGS) -o out 04.c
+	@$(CC) $(GCC_FLAGS) -o out 02.c
 
 filc:
-	@/opt/filc/build/bin/filcc $(FILC_FLAGS) -o out 04.c
+	@/opt/filc/build/bin/filcc $(FILC_FLAGS) -o out 02.c
 
 
 exec:

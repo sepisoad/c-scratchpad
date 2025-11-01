@@ -49,7 +49,6 @@ main(void) {
     printf("%5s:  %d\n", kv->k_str.cstr, kv->v_u32);
   }
 
-
   hashmap_purge(hm);
   arena_release(a);
   return 0;

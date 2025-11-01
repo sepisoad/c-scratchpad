@@ -8,15 +8,25 @@
 #include "base.h"
 
 /* ===================================================== */
+/*                       CONSTANTS                       */
+/* ===================================================== */
+
+#if defined(SEPI_PLATFORM_IMPLEMENTATION)
+#define MODULE
+#else
+#define MODULE static
+#endif /* SEPI_PLATFORM_IMPLEMENTATION */
+
+/* ===================================================== */
 /*                          API                          */
 /* ===================================================== */
 
-U32 platform_get_cpu_cores();
-Sz platform_get_page_size();
-Sz platform_get_large_page_size();
-RawPtr platform_reserve_large_pages(Sz size);
-U32 platform_commit_large_pages(RawPtr ptr, Sz size);
-Nothing platform_release(RawPtr ptr, Sz size);
+MODULE U32 platform_get_cpu_cores();
+MODULE Sz platform_get_page_size();
+MODULE Sz platform_get_large_page_size();
+MODULE RawPtr platform_reserve_large_pages(Sz size);
+MODULE U32 platform_commit_large_pages(RawPtr ptr, Sz size);
+MODULE Nothing platform_release(RawPtr ptr, Sz size);
 
 /* ===================================================== */
 /*                    IMPLEMENTATION                     */
@@ -30,28 +40,28 @@ Nothing platform_release(RawPtr ptr, Sz size);
 #include <unistd.h> /* getpagesize */
 #include <sys/mman.h> /* mmap */
 
-U32
+MODULE U32
 platform_get_cpu_cores() {
   return (U32) get_nprocs();
 }
 
-Sz
+MODULE Sz
 platform_get_page_size() {
   return (Sz) sysconf(_SC_PAGESIZE);
 }
 
-Sz
+MODULE Sz
 platform_get_large_page_size() {
   return MB(2);
 }
 
-RawPtr
+MODULE RawPtr
 platform_reserve_large_pages(Sz size) {
-  U32 flags = MAP_PRIVATE|MAP_ANONYMOUS|MAP_HUGETLB;
-  void* result = mmap(0, size, PROT_NONE, flags,-1, 0);
+  U32 flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB;
+  void* result = mmap(0, size, PROT_NONE, flags, -1, 0);
   if(result == MAP_FAILED) {
-    flags = MAP_PRIVATE|MAP_ANONYMOUS;
-    result = mmap(0, size, PROT_NONE, flags,-1, 0);
+    flags = MAP_PRIVATE | MAP_ANONYMOUS;
+    result = mmap(0, size, PROT_NONE, flags, -1, 0);
     if(result == MAP_FAILED) {
       result = 0;
     }
@@ -59,13 +69,13 @@ platform_reserve_large_pages(Sz size) {
   return result;
 }
 
-U32
+MODULE U32
 platform_commit_large_pages(RawPtr ptr, Sz size) {
-  mprotect(ptr, size, PROT_READ|PROT_WRITE);
+  mprotect(ptr, size, PROT_READ | PROT_WRITE);
   return 1;
 }
 
-Nothing
+MODULE Nothing
 platform_release(RawPtr ptr, Sz size) {
   munmap(ptr, size);
 }
@@ -75,37 +85,38 @@ platform_release(RawPtr ptr, Sz size) {
 #include <sysinfoapi.h>
 #include <memoryapi.h>
 
-U32
+MODULE U32
 platform_get_cpu_cores() {
   SYSTEM_INFO si = {0};
   GetSystemInfo(&si);
   return (U32) si->dwNumberOfProcessors;
 }
 
-Sz
+MODULE Sz
 platform_get_page_size() {
   SYSTEM_INFO si = {0};
   GetSystemInfo(&si);
   return (Sz) si->dwPageSize;
 }
 
-Sz
+MODULE Sz
 platform_get_large_page_size() {
   return GetLargePageMinimum();
 }
 
-RawPtr
+MODULE RawPtr
 platform_reserve_large_pages(Sz size) {
-  RawPtr result = VirtualAlloc(0, size, MEM_RESERVE|MEM_COMMIT|MEM_LARGE_PAGES, PAGE_READWRITE);
+  RawPtr result = VirtualAlloc(0, size,
+                               MEM_RESERVE | MEM_COMMIT | MEM_LARGE_PAGES, PAGE_READWRITE);
   return result;
 }
 
-U32
+MODULE U32
 platform_commit_large_pages(RawPtr ptr, Sz size) {
   return 1;
 }
 
-Nothing
+MODULE Nothing
 platform_release(RawPtr ptr, Sz size) {
   Ignore(size);
   VirtualFree(ptr, 0, MEM_RELEASE);

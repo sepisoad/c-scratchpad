@@ -15,9 +15,9 @@
 /* ===================================================== */
 
 #if defined(SEPI_HASHMAP_IMPLEMENTATION)
-#define module
+#define MODULE
 #else
-#define module static
+#define MODULE static
 #endif /* SEPI_HASHMAP_IMPLEMENTATION */
 
 /* ===================================================== */
@@ -64,16 +64,20 @@ struct HashMap {
 /*                          API                          */
 /* ===================================================== */
 
-module HashMap* hashmap_init(Arena* a, U64 cap);
-module Nothing hashmap_purge(HashMap *hm);
-module HashMapNode* hashmap_push(Arena* a, HashMap* hm, U64 hash, HashMapKV kv);
-module HashMapNode* hashmap_push_str8(Arena *a, HashMap* hm, Str8 key, Str8 value);
-module HashMapNode* hashmap_push_rawptr(Arena *a, HashMap* hm, Str8 key, RawPtr value);
-module HashMapNode* hashmap_push_u32(Arena *a, HashMap* hm, Str8 key, U32 value);
-module HashMapNode* hashmap_push_u64(Arena *a, HashMap* hm, Str8 key, U64 value);
-module HashMapKV* hashmap_find(HashMap* hm, Str8 key);
-module HashMapKV hashmap_pop(HashMap* hm, Str8 key);
-module Str8* hashmap_keys(Arena* a, HashMap* hm);
+MODULE HashMap* hashmap_init(Arena* a, U64 cap);
+MODULE Nothing hashmap_purge(HashMap *hm);
+MODULE HashMapNode* hashmap_push(Arena* a, HashMap* hm, U64 hash, HashMapKV kv);
+MODULE HashMapNode* hashmap_push_str8(Arena *a, HashMap* hm, Str8 key,
+                                      Str8 value);
+MODULE HashMapNode* hashmap_push_rawptr(Arena *a, HashMap* hm, Str8 key,
+                                        RawPtr value);
+MODULE HashMapNode* hashmap_push_u32(Arena *a, HashMap* hm, Str8 key,
+                                     U32 value);
+MODULE HashMapNode* hashmap_push_u64(Arena *a, HashMap* hm, Str8 key,
+                                     U64 value);
+MODULE HashMapKV* hashmap_find(HashMap* hm, Str8 key);
+MODULE HashMapKV hashmap_pop(HashMap* hm, Str8 key);
+MODULE Str8* hashmap_keys(Arena* a, HashMap* hm);
 
 /* ===================================================== */
 /*                    IMPLEMENTATION                     */
@@ -81,7 +85,7 @@ module Str8* hashmap_keys(Arena* a, HashMap* hm);
 
 #ifdef SEPI_HASHMAP_IMPLEMENTATION
 
-module Nothing
+MODULE Nothing
 hashmap_list_concat_in_place(HashMapList* to, HashMapList* from) {
   if (from->first) {
     if (to->first) {
@@ -95,7 +99,7 @@ hashmap_list_concat_in_place(HashMapList* to, HashMapList* from) {
   }
 }
 
-module HashMapNode*
+MODULE HashMapNode*
 hashmap_list_pop(HashMapList* hml) {
   HashMapNode* hmn = hml->first;
 
@@ -109,13 +113,13 @@ hashmap_list_pop(HashMapList* hml) {
   return hmn;
 }
 
-module U64
+MODULE U64
 hashmap_hasher(Str8 str) {
   return rapidhash_withSeed(str.cstr, str.size, 1987);
   // return rapidhash(str.cstr, str.size);
 }
 
-module HashMap*
+MODULE HashMap*
 hashmap_init(Arena* a, U64 capacity) {
   HashMap* hm = arena_push_array(a, HashMap, 1);
   hm->capacity = capacity;
@@ -123,7 +127,7 @@ hashmap_init(Arena* a, U64 capacity) {
   return hm;
 }
 
-module Nothing
+MODULE Nothing
 hashmap_purge(HashMap *hm) {
   hm->count = 0;
 
@@ -132,7 +136,7 @@ hashmap_purge(HashMap *hm) {
   }
 }
 
-module HashMapNode*
+MODULE HashMapNode*
 hashmap_push(Arena* a, HashMap* hm, U64 hash, HashMapKV kv) {
   HashMapNode* hmn;
 
@@ -161,7 +165,7 @@ hashmap_push(Arena* a, HashMap* hm, U64 hash, HashMapKV kv) {
   return hmn;
 }
 
-module HashMapNode*
+MODULE HashMapNode*
 hashmap_push_str8(Arena *a, HashMap* hm, Str8 key, Str8 value) {
   U64 hash = hashmap_hasher(key);
   return hashmap_push(a, hm, hash, (HashMapKV) {
@@ -169,7 +173,7 @@ hashmap_push_str8(Arena *a, HashMap* hm, Str8 key, Str8 value) {
   });
 }
 
-module HashMapNode*
+MODULE HashMapNode*
 hashmap_push_rawptr(Arena *a, HashMap* hm, Str8 key, RawPtr value) {
   U64 hash = hashmap_hasher(key);
   return hashmap_push(a, hm, hash, (HashMapKV) {
@@ -177,7 +181,7 @@ hashmap_push_rawptr(Arena *a, HashMap* hm, Str8 key, RawPtr value) {
   });
 }
 
-module HashMapNode*
+MODULE HashMapNode*
 hashmap_push_u32(Arena *a, HashMap* hm, Str8 key, U32 value) {
   U64 hash = hashmap_hasher(key);
   return hashmap_push(a, hm, hash, (HashMapKV) {
@@ -185,7 +189,7 @@ hashmap_push_u32(Arena *a, HashMap* hm, Str8 key, U32 value) {
   });
 }
 
-module HashMapNode*
+MODULE HashMapNode*
 hashmap_push_u64(Arena *a, HashMap* hm, Str8 key, U64 value) {
   U64 hash = hashmap_hasher(key);
   return hashmap_push(a, hm, hash, (HashMapKV) {
@@ -193,7 +197,7 @@ hashmap_push_u64(Arena *a, HashMap* hm, Str8 key, U64 value) {
   });
 }
 
-module HashMapNode*
+MODULE HashMapNode*
 hashmap_push_u32_str8(Arena *a, HashMap* hm, U32 key, Str8 value) {
   Str8 strkey = str8_raw(&key, sizeof(key));
   U64 hash = hashmap_hasher(strkey);
@@ -202,7 +206,7 @@ hashmap_push_u32_str8(Arena *a, HashMap* hm, U32 key, Str8 value) {
   });
 }
 
-module HashMapKV*
+MODULE HashMapKV*
 hashmap_find(HashMap* hm, Str8 key) {
   U64 hash = hashmap_hasher(key);
   U64 i = hash % hm->capacity;
@@ -215,7 +219,7 @@ hashmap_find(HashMap* hm, Str8 key) {
   return 0;
 }
 
-module HashMapKV
+MODULE HashMapKV
 hashmap_pop(HashMap* hm, Str8 key) {
   HashMapKV kv = {0};
   U64 hash = hashmap_hasher(key);
@@ -239,7 +243,7 @@ hashmap_pop(HashMap* hm, Str8 key) {
   return kv;
 }
 
-module Str8*
+MODULE Str8*
 hashmap_keys(Arena* a, HashMap* hm) {
   Str8 *keys = arena_push_array_no_zero(a, Str8, hm->count);
   for (U64 i = 0, ikey = 0; i < hm->capacity; ++i) {

@@ -13,9 +13,9 @@
 /* ===================================================== */
 
 #if defined(SEPI_ARENA_IMPLEMENTATION)
-#define module
+#define MODULE
 #else
-#define module static
+#define MODULE static
 #endif /* SEPI_ARENA_IMPLEMENTATION */
 
 #define ARENA_DEFAULT_RESERVE_SIZE MB(64)
@@ -58,15 +58,15 @@ struct ArenaScratch {
 /*                          API                          */
 /* ===================================================== */
 
-module Arena* arena_alloc_(ArenaParams* ap);
-module Nothing arena_release(Arena* a);
-module RawPtr arena_push(Arena*, U64 size, U64 align, Bool with_zero);
-module Nothing arena_pop(Arena*, U64 amount);
-module Nothing arena_pop_to(Arena* a, U64 position);
-module Nothing arena_clear(Arena*);
-module U64 arena_get_position(Arena* a);
-module ArenaScratch arena_scratch_begin(Arena* a);
-module Nothing arena_scratch_end(ArenaScratch s);
+MODULE Arena* arena_alloc_(ArenaParams* ap);
+MODULE Nothing arena_release(Arena* a);
+MODULE RawPtr arena_push(Arena*, U64 size, U64 align, Bool with_zero);
+MODULE Nothing arena_pop(Arena*, U64 amount);
+MODULE Nothing arena_pop_to(Arena* a, U64 position);
+MODULE Nothing arena_clear(Arena*);
+MODULE U64 arena_get_position(Arena* a);
+MODULE ArenaScratch arena_scratch_begin(Arena* a);
+MODULE Nothing arena_scratch_end(ArenaScratch s);
 
 #define arena_alloc(...) arena_alloc_(&(ArenaParams){.requested_reserve_size = ARENA_DEFAULT_RESERVE_SIZE, .requested_commit_size = ARENA_DEFAULT_COMMIT_SIZE, .caller_file_name = __FILE__, .caller_file_line = __LINE__, __VA_ARGS__})
 #define arena_push_array_no_zero_aligned(arena, type, count, alignment) (type *)arena_push((arena), sizeof(type) * (count), (alignment), (TRUE))
@@ -80,7 +80,7 @@ module Nothing arena_scratch_end(ArenaScratch s);
 
 #ifdef SEPI_ARENA_IMPLEMENTATION
 
-module Arena*
+MODULE Arena*
 arena_alloc_(ArenaParams* ap) {
   U64 const large_page_size = platform_get_large_page_size();
 
@@ -119,7 +119,7 @@ arena_alloc_(ArenaParams* ap) {
   return a;
 }
 
-module Nothing
+MODULE Nothing
 arena_release(Arena* a) {
   for(Arena* it = a->current_block, *previous_block = 0; it != 0;
       it = previous_block) {
@@ -128,7 +128,7 @@ arena_release(Arena* a) {
   }
 }
 
-module RawPtr
+MODULE RawPtr
 arena_push(Arena* a, U64 size, U64 align, Bool with_zero) {
   Arena* current_block = a->current_block;
   U64 offset_aligned = AlignUp(current_block->offset, align);
@@ -208,7 +208,7 @@ arena_push(Arena* a, U64 size, U64 align, Bool with_zero) {
   return result;
 }
 
-module Nothing
+MODULE Nothing
 arena_pop(Arena* a, U64 amount) {
   U64 old_position = arena_get_position(a);
   U64 new_position = old_position;
@@ -218,7 +218,7 @@ arena_pop(Arena* a, U64 amount) {
   arena_pop_to(a, new_position);
 }
 
-module Nothing
+MODULE Nothing
 arena_pop_to(Arena* a, U64 position) {
   Sz header_size = sizeof(Arena);
   U64 normilized_position = Max(header_size, position);
@@ -244,19 +244,19 @@ arena_pop_to(Arena* a, U64 position) {
   current_block->offset = new_offset;
 }
 
-module Nothing
+MODULE Nothing
 arena_clear(Arena* a) {
   arena_pop_to(a, 0);
 }
 
-module U64
+MODULE U64
 arena_get_position(Arena* a) {
   Arena* current_block = a->current_block;
   U64 position = current_block->base_position + current_block->offset;
   return position;
 }
 
-module ArenaScratch
+MODULE ArenaScratch
 arena_scratch_begin(Arena* a) {
   U64 position = arena_get_position(a);
   return (ArenaScratch) {
@@ -264,7 +264,7 @@ arena_scratch_begin(Arena* a) {
   };
 }
 
-module Nothing
+MODULE Nothing
 arena_scratch_end(ArenaScratch s) {
   arena_pop_to(s.arena, s.offset);
 }

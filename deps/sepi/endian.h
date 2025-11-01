@@ -1,17 +1,32 @@
 #ifndef SEPI_ENDIAN_H
 #define SEPI_ENDIAN_H
 
+/* ===================================================== */
+/*                     DEPENDENCIES                      */
+/* ===================================================== */
+
 #include <stdlib.h>
 #include "base.h"
+
+/* ===================================================== */
+/*                       CONSTANTS                       */
+/* ===================================================== */
+
+#if defined(SEPI_ENDIAN_IMPLEMENTATION)
+#define MODULE
+#else
+#define MODULE static
+#endif /* SEPI_ENDIAN_IMPLEMENTATION */
+
 
 /* ===================================================== */
 /*                          API                          */
 /* ===================================================== */
 
-I16 nd_i16(I16 num);
-I32 nd_i32(I32 num);
-I64 nd_i64(I64 num);
-F32 nd_f32(F32 num);
+MODULE I16 nd_i16(I16 num);
+MODULE I32 nd_i32(I32 num);
+MODULE I64 nd_i64(I64 num);
+MODULE F32 nd_f32(F32 num);
 
 /* ===================================================== */
 /*                    IMPLEMENTATION                     */
@@ -19,22 +34,26 @@ F32 nd_f32(F32 num);
 
 #ifdef SEPI_ENDIAN_IMPLEMENTATION
 
-static inline Bool isle() {
+MODULE inline Bool
+isle() {
   U16 num = 0x1;
   return (*(U8*)&num == 1);
 }
 
-I16 nd_i16(I16 num) {
+MODULE I16
+nd_i16(I16 num) {
   return isle() ? num : (I16)((num >> 8) | (num << 8));
 }
 
-I32 nd_i32(I32 num) {
+MODULE I32
+nd_i32(I32 num) {
   return isle() ? num
          : (I32)((num >> 24) | ((num >> 8) & 0x0000FF00) |
                  ((num << 8) & 0x00FF0000) | (num << 24));
 }
 
-I64 nd_i64(I64 num) {
+MODULE I64
+nd_i64(I64 num) {
   return isle() ? num
          : (I64)((num >> 56) | ((num >> 40) & 0x000000000000FF00LL) |
                  ((num >> 24) & 0x0000000000FF0000LL) |
@@ -44,9 +63,12 @@ I64 nd_i64(I64 num) {
                  ((num << 40) & 0x00FF000000000000LL) | (num << 56));
 }
 
-F32 nd_f32(F32 num) {
-  if(isle())
+MODULE F32
+nd_f32(F32 num) {
+  if(isle()) {
     return num;
+  }
+
   F32 result;
   Str src = (Str)&num;
   Str dst = (Str)&result;

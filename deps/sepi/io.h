@@ -11,10 +11,20 @@
 #include "base.h"
 
 /* ===================================================== */
+/*                       CONSTANTS                       */
+/* ===================================================== */
+
+#if defined(SEPI_IO_IMPLEMENTATION)
+#define MODULE
+#else
+#define MODULE static
+#endif /* SEPI_IO_IMPLEMENTATION */
+
+/* ===================================================== */
 /*                          API                          */
 /* ===================================================== */
 
-SZ load_file(CSTR, BUF*);
+MODULE SZ io_load_file(CSTR, BUF*);
 
 /* ===================================================== */
 /*                    IMPLEMENTATION                     */
@@ -22,7 +32,8 @@ SZ load_file(CSTR, BUF*);
 
 #ifdef SEPI_IO_IMPLEMENTATION
 
-SZ load_file(CSTR path, BUF* buf) {
+MODULE SZ
+io_load_file(CSTR path, BUF* buf) {
   FILE* f = fopen(path, "rb");
   NOTNULL(f);
 

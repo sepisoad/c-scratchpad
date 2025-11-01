@@ -63,10 +63,10 @@ ArenaScratch arena_scratch_begin(Arena* a);
 Nothing arena_scratch_end(ArenaScratch s);
 
 #define arena_alloc(...) arena_alloc_(&(ArenaParams){.requested_reserve_size = ARENA_DEFAULT_RESERVE_SIZE, .requested_commit_size = ARENA_DEFAULT_COMMIT_SIZE, .caller_file_name = __FILE__, .caller_file_line = __LINE__, __VA_ARGS__})
-#define push_array_no_zero_aligned(arena, type, count, alignment) (type *)arena_push((arena), sizeof(type) * (count), (alignment), (True))
-#define push_array_aligned(arena, type, count, alignment) (type *)arena_push((arena), sizeof(type) * (count), (alignment), (FALSE))
-#define push_array_no_zero(arena, type, count, alignment) push_array_no_zero_aligned(arena, type, count, Max(8, AlignOf(type)))
-#define push_array(arena, type, count) push_array_aligned(arena, type, count, Max(8, AlignOf(type)))
+#define arena_push_array_no_zero_aligned(arena, type, count, alignment) (type *)arena_push((arena), sizeof(type) * (count), (alignment), (TRUE))
+#define arena_push_array_aligned(arena, type, count, alignment) (type *)arena_push((arena), sizeof(type) * (count), (alignment), (FALSE))
+#define arena_push_array_no_zero(arena, type, count) arena_push_array_no_zero_aligned(arena, type, count, Max(8, AlignOf(type)))
+#define arena_push_array(arena, type, count) arena_push_array_aligned(arena, type, count, Max(8, AlignOf(type)))
 
 /* ===================================================== */
 /*                    IMPLEMENTATION                     */

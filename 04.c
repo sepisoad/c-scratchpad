@@ -17,26 +17,48 @@ main(void) {
 
   HashMap* hm = hashmap_init(a, 256);
 
-  hashmap_push_str8_u32(a, hm, str8("sepi"), 38);
-  hashmap_push_str8_u32(a, hm, str8("yasin"), 43);
-  hashmap_push_str8_u32(a, hm, str8("amin"), 45);
-  hashmap_push_str8_u32(a, hm, str8("mooa"), 67);
-  hashmap_push_str8_u32(a, hm, str8("booa"), 71);
+  hashmap_push_u32(a, hm, str8("sepi"), 38);
+  hashmap_push_u32(a, hm, str8("yasin"), 43);
+  hashmap_push_u32(a, hm, str8("amin"), 45);
+  hashmap_push_u32(a, hm, str8("mooa"), 67);
+  hashmap_push_u32(a, hm, str8("booa"), 71);
 
-  HashMapKV* kv = hashmap_find_str8(hm, str8("amin"));
+  HashMapKV* kv = hashmap_find(hm, str8("amin"));
   printf("%s:  %d\n", kv->k_str.cstr, kv->v_u32);
 
-  kv = hashmap_find_str8(hm, str8("sepi"));
+  kv = hashmap_find(hm, str8("sepi"));
   printf("%s:  %d\n", kv->k_str.cstr, kv->v_u32);
 
-  kv = hashmap_find_str8(hm, str8("booa"));
+  kv = hashmap_find(hm, str8("booa"));
   printf("%s:  %d\n", kv->k_str.cstr, kv->v_u32);
 
-  kv = hashmap_find_str8(hm, str8("mooa"));
+  kv = hashmap_find(hm, str8("mooa"));
   printf("%s:  %d\n", kv->k_str.cstr, kv->v_u32);
 
-  kv = hashmap_find_str8(hm, str8("yasin"));
+  kv = hashmap_find(hm, str8("yasin"));
   printf("%s:  %d\n", kv->k_str.cstr, kv->v_u32);
+
+  printf("-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\n");
+
+  Str8* keys = hashmap_keys(a, hm);
+  for (U64 i = 0; i < hm->count; i++) {
+    printf("%s ", keys[i].cstr);
+  }
+  printf("\n");
+
+  HashMapKV kv2 = hashmap_pop(hm, str8("yasin"));
+  printf("%s:  %d\n", kv2.k_str.cstr, kv2.v_u32);
+
+  printf("-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\n");
+
+  kv2 = hashmap_pop(hm, str8("yasin"));
+  printf("%s:  %d\n", kv2.k_str.cstr, kv2.v_u32);
+
+  keys = hashmap_keys(a, hm);
+  for (U64 i = 0; i < hm->count; i++) {
+    printf("%s ", keys[i].cstr);
+  }
+  printf("\n");
 
 
   hashmap_purge(hm);

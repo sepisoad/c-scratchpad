@@ -1,157 +1,190 @@
 #include <stdio.h>
+#include <time.h>
 
 #define SEPI_ENDIAN_IMPLEMENTATION
 #define SEPI_PLATFORM_IMPLEMENTATION
 #define SEPI_STRING_IMPLEMENTATION
 #define SEPI_ARENA_IMPLEMENTATION
+#define SEPI_ARRAY_IMPLEMENTATION
 #define SEPI_LIST_IMPLEMENTATION
-#define SEPI_HASHMAP_IMPLEMENTATION
+#define SEPI_STACK_IMPLEMENTATION
 #define SEPI_IO_IMPLEMENTATION
+#define SEPI_HASHMAP_IMPLEMENTATION
 
 #include <sepi/base.h>
+#include <sepi/array.h>
+#include <sepi/hashmap.h>
 #include <sepi/io.h>
-#include <sepi/string.h>
 
-I32 test_io_is_directory_or_file() {
-  Str8 a_file = str8("/home/sepi/Projects/sepi/c-scratchpad/makefile");
-  Str8 a_dir = str8("/home/sepi/Projects/sepi/c-scratchpad/");
-
-  Bool is_dir = FALSE;
-
-  IOError err = io_is_directory(a_file, &is_dir);
-  if (IO_ERR_SUCCESS != err) {
-    printf("test_io_is_directory_or_file\n");
-    return 1;
-  }
-
-  if (is_dir) {
-    printf("'%s' is a dir\n", a_file.cstr);
-  } else {
-    printf("'%s' is NOT a dir\n", a_file.cstr);
-  }
-
-  err = io_is_directory(a_dir, &is_dir);
-  if (IO_ERR_SUCCESS != err) {
-    printf("test_io_is_directory_or_file\n");
-    return 1;
-  }
-
-  if (is_dir) {
-    printf("'%s' is a dir\n", a_dir.cstr);
-  } else {
-    printf("'%s' is NOT a dir\n", a_dir.cstr);
-  }
-
+int test_01() {
   Bool is_file = FALSE;
 
-  err = io_is_file(a_file, &is_file);
+  IOError err = io_is_file(str8("makefile"), &is_file);
   if (IO_ERR_SUCCESS != err) {
-    printf("test_io_is_directory_or_file\n");
     return 1;
   }
 
-  if (is_file) {
-    printf("'%s' is a file\n", a_file.cstr);
-  } else {
-    printf("'%s' is NOT a file\n", a_file.cstr);
-  }
-
-  err = io_is_file(a_dir, &is_file);
-  if (IO_ERR_SUCCESS != err) {
-    printf("test_io_is_directory_or_file\n");
+  if (FALSE == is_file) {
     return 1;
   }
 
-  if (is_file) {
-    printf("'%s' is a file\n", a_dir.cstr);
-  } else {
-    printf("'%s' is NOT a file\n", a_dir.cstr);
+  // ===================
+
+  err = io_is_file(str8("."), &is_file);
+  if (IO_ERR_SUCCESS != err) {
+    return 1;
+  }
+
+  if (TRUE == is_file) {
+    return 1;
+  }
+
+  // ===================
+
+  return 0;
+}
+
+int test_02() {
+  Bool is_dir = FALSE;
+
+  IOError err = io_is_directory(str8("makefile"), &is_dir);
+  if (IO_ERR_SUCCESS != err) {
+    return 1;
+  }
+
+  if (TRUE == is_dir) {
+    return 1;
+  }
+
+  // ===================
+
+  err = io_is_directory(str8("."), &is_dir);
+  if (IO_ERR_SUCCESS != err) {
+    return 1;
+  }
+
+  if (FALSE == is_dir) {
+    return 1;
+  }
+
+  // ===================
+
+  return 0;
+}
+
+int test_03() {
+  IOError err = io_make_directory(str8("/Users/sepi/Projects/sepi/c-scratchpad/SucMyC0ck"));
+  if (IO_ERR_SUCCESS != err) {
+    return 1;
+  }
+
+  err = io_make_directory(str8("./PooPoo"));
+  if (IO_ERR_SUCCESS != err) {
+    return 1;
+  }
+
+  err = io_make_directory(str8("ChooChoo"));
+  if (IO_ERR_SUCCESS != err) {
+    return 1;
   }
 
   return 0;
 }
 
-I32 test_io_make_directory() {
-  Str8 dir_1 = str8("/tmp/sepi-1");
-  IOError err = io_make_directory(dir_1);
+int test_04() {
+  IOError err = 0;
+
+  Arena* a = arena_create();
+
+  err = io_make_nested_directory(str8_clone(a, str8("DIR1/DIR2/DIR3")));
   if (IO_ERR_SUCCESS != err) {
-    printf("test_io_make_directory\n");
     return 1;
   }
-  printf("made '%s' directory!\n", dir_1.cstr);
 
-  Str8 dir_2 = str8("/tmp/sepi-1/sepi-2");
-  err = io_make_directory(dir_2);
+  err = io_make_nested_directory(str8_clone(a, str8("./DIR1/DIR4/DIR5")));
   if (IO_ERR_SUCCESS != err) {
-    printf("test_io_make_directory\n");
     return 1;
   }
-  printf("made '%s' directory!\n", dir_2.cstr);
 
+  err = io_make_nested_directory(str8_clone(a, str8("/Users/sepi/Projects/sepi/c-scratchpad/DIR1/DIR6/DIR7")));
+  if (IO_ERR_SUCCESS != err) {
+    return 1;
+  }
 
   return 0;
 }
 
-I32 test_io_make_nested_directory() {
-  Str8 dir_1 = str8("/tmp/sepi-a/sepi-b/sepi-c/sepi-d");
-  IOError err = io_make_nested_directory(dir_1);
+int test_05() {
+  IOError err = 0;
+
+  Arena* a = arena_create();
+  IONode* node = arena_push(a, sizeof(IONode), AlignOf(IONode), TRUE);
+
+  err = io_directory_children(a, str8("/tmp/you"), node);
   if (IO_ERR_SUCCESS != err) {
-    printf("test_io_make_nested_directory\n");
     return 1;
   }
-  printf("made '%s' directory!\n", dir_1.cstr);
 
-  Str8 dir_2 = str8("/tmp/sepi-a//sepi-b/sepi-c/sepi-d/sepi-e/");
-  err = io_make_nested_directory(dir_2);
-  if (IO_ERR_SUCCESS != err) {
-    printf("test_io_make_nested_directory\n");
-    return 1;
+  for (U32 index = 0; index < node->children->offset; index++) {
+    IONode* n = array_get(node->children, index);
+    printf("%s\n", n->name.cstr);
   }
-  printf("made '%s' directory!\n", dir_2.cstr);
-
 
   return 0;
 }
 
-I32 test_io_directory_children() {
-  Str8 dir = str8("/tmp/");
-  Arena *a = arena_create();
-  HashMap *hm = hashmap_init(a, 64);
+int test_06() {
+  IOError err = 0;
 
-  res = io_directory_children(dir, hm);
+  Arena* a = arena_create();
+  IONode* node = arena_push(a, sizeof(IONode), AlignOf(IONode), TRUE);
+
+  err = io_directory_nested_children(a, str8("/tmp/you/test"), node);
   if (IO_ERR_SUCCESS != err) {
-    printf("test_io_directory_children\n");
     return 1;
+  }
+
+  for (U32 index = 0; index < node->children->offset; index++) {
+    IONode* n = array_get(node->children, index);
+    printf("%s\n", n->name.cstr);
   }
 
   return 0;
 }
 
 int main(Nothing) {
-  I32 res = 0;
+  int res = 0;
 
-  // res = test_io_is_directory_or_file();
+  // res = test_01();
   // if (res) {
-  //   return res;
+  //   goto cleanup;
   // }
 
-  // res = test_io_make_directory();
+  // res = test_02();
   // if (res) {
-  //   return res;
+  //   goto cleanup;
   // }
 
-  // res = test_io_make_nested_directory();
+  // res = test_03();
   // if (res) {
-  //   return res;
+  //   goto cleanup;
   // }
 
-  // res = test_io_make_nested_directory();
+  // res = test_04();
   // if (res) {
-  //   return res;
+  //   goto cleanup;
   // }
 
-  res = test_io_directory_children();
+  // res = test_05();
+  // if (res) {
+  //   goto cleanup;
+  // }
+
+  res = test_06();
   if (res) {
-    return res;
+    goto cleanup;
   }
+
+cleanup:
+  return res;
 }

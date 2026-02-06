@@ -14,7 +14,7 @@ GCC_FLAGS := -std=c11 -g3 -O0  -DDEBUG $(GCC_WARNS) $(GCC_SAN) $(SEPI_LIBS)
 FILC_FLAGS := -std=c11 -g3 -O0  -DDEBUG $(GCC_WARNS) $(SEPI_LIBS)
 OUT := out
 
-all: 09
+all: 11
 
 san:
 	@$(CC) $(GCC_FLAGS) -o $(OUT) 02.c
@@ -53,6 +53,18 @@ filc:
 
 09:
 	@$(CC) $(GCC_FLAGS) -o $(OUT) 09.c
+	@./out
+
+10:
+	@$(CC) $(GCC_FLAGS) -o $(OUT) 10.c
+	@./out
+
+11:
+	@$(CC) $(GCC_FLAGS) -o $(OUT) 11.c
+	@./out
+
+12:
+	@$(CC) $(GCC_FLAGS) -o $(OUT) 12.c
 	@./out
 
 exec:

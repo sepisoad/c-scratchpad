@@ -1,190 +1,434 @@
 #include <stdio.h>
-#include <time.h>
 
-#define SEPI_ENDIAN_IMPLEMENTATION
 #define SEPI_PLATFORM_IMPLEMENTATION
-#define SEPI_STRING_IMPLEMENTATION
 #define SEPI_ARENA_IMPLEMENTATION
-#define SEPI_ARRAY_IMPLEMENTATION
-#define SEPI_LIST_IMPLEMENTATION
-#define SEPI_STACK_IMPLEMENTATION
-#define SEPI_IO_IMPLEMENTATION
-#define SEPI_HASHMAP_IMPLEMENTATION
+#define SEPI_STRING_IMPLEMENTATION
 
-#include <sepi/base.h>
-#include <sepi/array.h>
-#include <sepi/hashmap.h>
-#include <sepi/io.h>
+#include <sepi/array_ex.h>
+#include <sepi/list_ex.h>
+#include <sepi/map_ex.h>
+#include <sepi/stack_ex.h>
+#include <sepi/string.h>
+#include <sepi/tree_ex.h>
 
-int test_01() {
-  Bool is_file = FALSE;
+typedef struct {
+  Str8 name;
+  U32 age;
+  struct {
+    Str8 title;
+    struct {
+      Str8 status;
+    } hidden;
+  } meta;
+} Info;
 
-  IOError err = io_is_file(str8("makefile"), &is_file);
-  if (IO_ERR_SUCCESS != err) {
-    return 1;
-  }
+DefineStack(Info, Info, info);
+DefineStack(Info *, InfoPtr, info_ptr);
+DefineArray(Info, Info, info);
+DefineArray(Info *, InfoPtr, info_ptr);
+DefineList(Info, Info, info);
+DefineList(Info *, InfoPtr, info_ptr);
+DefineTree(Info, Info, info);
+DefineTree(Info *, InfoPtr, info_ptr);
+DefineMap(Info, Info, info);
+DefineMap(Info *, InfoPtr, info_ptr);
 
-  if (FALSE == is_file) {
-    return 1;
-  }
+/* ****************************************** */
+void stack_value() {
+  Arena *arena = arena_create();
+  StackInfo stack = stack_info_make(arena);
 
-  // ===================
+  Info info1 = {
+      .name = S("sepi"),
+      .age = 38,
+      .meta = {.title = S("mr"), .hidden = {.status = S("SHIT SEPI")}}};
+  Info info2 = {
+      .name = S("matilde"),
+      .age = 27,
+      .meta = {.title = S("mrs"), .hidden = {.status = S("SHIT MATILDE")}}};
 
-  err = io_is_file(str8("."), &is_file);
-  if (IO_ERR_SUCCESS != err) {
-    return 1;
-  }
+  stack_info_push(&stack, info1);
+  stack_info_push(&stack, info2);
 
-  if (TRUE == is_file) {
-    return 1;
-  }
+  Info vinfo = stack_info_pop(&stack);
+  Dbg("%s: %d # %s ## %s", CS(vinfo.name), vinfo.age, CS(vinfo.meta.title),
+      CS(vinfo.meta.hidden.status));
 
-  // ===================
+  vinfo = stack_info_pop(&stack);
+  Dbg("%s: %d # %s ## %s", CS(vinfo.name), vinfo.age, CS(vinfo.meta.title),
+      CS(vinfo.meta.hidden.status));
 
-  return 0;
+  stack_info_clean(&stack);
+  arena_destroy(arena);
+  Dbg("=== %s() ===\n", __func__);
 }
 
-int test_02() {
-  Bool is_dir = FALSE;
+/* ****************************************** */
+void stack_pointer() {
+  Arena *arena = arena_create();
+  StackInfoPtr stack = stack_info_ptr_make(arena);
 
-  IOError err = io_is_directory(str8("makefile"), &is_dir);
-  if (IO_ERR_SUCCESS != err) {
-    return 1;
-  }
+  Info info1 = {
+      .name = S("sepi"),
+      .age = 38,
+      .meta = {.title = S("mr"), .hidden = {.status = S("SHIT SEPI")}}};
+  Info info2 = {
+      .name = S("matilde"),
+      .age = 27,
+      .meta = {.title = S("mrs"), .hidden = {.status = S("SHIT MATILDE")}}};
 
-  if (TRUE == is_dir) {
-    return 1;
-  }
+  stack_info_ptr_push(&stack, &info1);
+  stack_info_ptr_push(&stack, &info2);
 
-  // ===================
+  Info *pinfo = stack_info_ptr_pop(&stack);
+  Dbg("%s: %d # %s ## %s", CS(pinfo->name), pinfo->age, CS(pinfo->meta.title),
+      CS(pinfo->meta.hidden.status));
 
-  err = io_is_directory(str8("."), &is_dir);
-  if (IO_ERR_SUCCESS != err) {
-    return 1;
-  }
+  pinfo = stack_info_ptr_pop(&stack);
+  Dbg("%s: %d # %s ## %s", CS(pinfo->name), pinfo->age, CS(pinfo->meta.title),
+      CS(pinfo->meta.hidden.status));
 
-  if (FALSE == is_dir) {
-    return 1;
-  }
-
-  // ===================
-
-  return 0;
+  stack_info_ptr_clean(&stack);
+  arena_destroy(arena);
+  Dbg("=== %s() ===\n", __func__);
 }
 
-int test_03() {
-  IOError err = io_make_directory(str8("/Users/sepi/Projects/sepi/c-scratchpad/SucMyC0ck"));
-  if (IO_ERR_SUCCESS != err) {
-    return 1;
-  }
+/* ****************************************** */
+void array_value() {
+  Arena *arena = arena_create();
+  ArrayInfo array = array_info_make(arena);
 
-  err = io_make_directory(str8("./PooPoo"));
-  if (IO_ERR_SUCCESS != err) {
-    return 1;
-  }
+  Info info1 = {
+      .name = S("sepi"),
+      .age = 38,
+      .meta = {.title = S("mr"), .hidden = {.status = S("SHIT SEPI")}}};
+  Info info2 = {
+      .name = S("matilde"),
+      .age = 27,
+      .meta = {.title = S("mrs"), .hidden = {.status = S("SHIT MATILDE")}}};
 
-  err = io_make_directory(str8("ChooChoo"));
-  if (IO_ERR_SUCCESS != err) {
-    return 1;
-  }
+  array_info_push(&array, &info1);
+  array_info_push(&array, &info2);
 
-  return 0;
+  Info *pinfo = array_info_get(&array, 0);
+  Dbg("%s: %d # %s ## %s", CS(pinfo->name), pinfo->age, CS(pinfo->meta.title),
+      CS(pinfo->meta.hidden.status));
+
+  pinfo = array_info_get(&array, 1);
+  Dbg("%s: %d # %s ## %s", CS(pinfo->name), pinfo->age, CS(pinfo->meta.title),
+      CS(pinfo->meta.hidden.status));
+
+  arena_destroy(arena);
+  Dbg("=== %s() ===\n", __func__);
 }
 
-int test_04() {
-  IOError err = 0;
+/* ****************************************** */
+void array_pointer() {
+  Arena *arena = arena_create();
+  ArrayInfoPtr array = array_info_ptr_make(arena);
 
-  Arena* a = arena_create();
+  Info *pinfo1 = arena_push(arena, sizeof(Info), AlignOf(Info), TRUE);
+  Info *pinfo2 = arena_push(arena, sizeof(Info), AlignOf(Info), TRUE);
 
-  err = io_make_nested_directory(str8_clone(a, str8("DIR1/DIR2/DIR3")));
-  if (IO_ERR_SUCCESS != err) {
-    return 1;
-  }
+  pinfo1->name = S("sepi");
+  pinfo1->age = 38;
+  pinfo1->meta.title = S("mr");
+  pinfo1->meta.hidden.status = S("SHIT SEPI");
 
-  err = io_make_nested_directory(str8_clone(a, str8("./DIR1/DIR4/DIR5")));
-  if (IO_ERR_SUCCESS != err) {
-    return 1;
-  }
+  pinfo2->name = S("matilde");
+  pinfo2->age = 27;
+  pinfo2->meta.title = S("mrs");
+  pinfo2->meta.hidden.status = S("SHIT MATILDE");
 
-  err = io_make_nested_directory(str8_clone(a, str8("/Users/sepi/Projects/sepi/c-scratchpad/DIR1/DIR6/DIR7")));
-  if (IO_ERR_SUCCESS != err) {
-    return 1;
-  }
+  array_info_ptr_push(&array, &pinfo1);
+  array_info_ptr_push(&array, &pinfo2);
 
-  return 0;
+  Info **ppinfo = array_info_ptr_get(&array, 0);
+  Info *pinfo = *ppinfo;
+  Dbg("%s: %d # %s ## %s", CS(pinfo->name), pinfo->age, CS(pinfo->meta.title),
+      CS(pinfo->meta.hidden.status));
+
+  ppinfo = array_info_ptr_get(&array, 1);
+  pinfo = *ppinfo;
+  Dbg("%s: %d # %s ## %s", CS(pinfo->name), pinfo->age, CS(pinfo->meta.title),
+      CS(pinfo->meta.hidden.status));
+
+  arena_destroy(arena);
+  Dbg("=== %s() ===\n", __func__);
 }
 
-int test_05() {
-  IOError err = 0;
+/* ****************************************** */
+void list_value() {
+  Arena *arena = arena_create();
+  ListInfo list = list_info_make(arena);
 
-  Arena* a = arena_create();
-  IONode* node = arena_push(a, sizeof(IONode), AlignOf(IONode), TRUE);
+  Info info1 = {
+      .name = S("sepi"),
+      .age = 38,
+      .meta = {.title = S("mr"), .hidden = {.status = S("SHIT SEPI")}}};
+  Info info2 = {
+      .name = S("matilde"),
+      .age = 27,
+      .meta = {.title = S("mrs"), .hidden = {.status = S("SHIT MATILDE")}}};
 
-  err = io_directory_children(a, str8("/tmp/you"), node);
-  if (IO_ERR_SUCCESS != err) {
-    return 1;
-  }
+  list_info_push_end(&list, info1);
+  list_info_push_end(&list, info2);
 
-  for (U32 index = 0; index < node->children->offset; index++) {
-    IONode* n = array_get(node->children, index);
-    printf("%s\n", n->name.cstr);
-  }
+  Info vinfo = list_info_get(&list, 0);
+  Dbg("%s: %d # %s ## %s", CS(vinfo.name), vinfo.age, CS(vinfo.meta.title),
+      CS(vinfo.meta.hidden.status));
 
-  return 0;
+  vinfo = list_info_get(&list, 1);
+  Dbg("%s: %d # %s ## %s", CS(vinfo.name), vinfo.age, CS(vinfo.meta.title),
+      CS(vinfo.meta.hidden.status));
+
+  ListInfoNode *node = list_info_pop_end(&list);
+  Dbg("%s: %d # %s ## %s", CS(node->data.name), node->data.age,
+      CS(node->data.meta.title), CS(node->data.meta.hidden.status));
+
+  node = list_info_pop_end(&list);
+  Dbg("%s: %d # %s ## %s", CS(node->data.name), node->data.age,
+      CS(node->data.meta.title), CS(node->data.meta.hidden.status));
+
+  list_info_clean(&list);
+  arena_destroy(arena);
+  Dbg("=== %s() ===\n", __func__);
 }
 
-int test_06() {
-  IOError err = 0;
+/* ****************************************** */
+void list_pointer() {
+  Arena *arena = arena_create();
+  ListInfoPtr list = list_info_ptr_make(arena);
 
-  Arena* a = arena_create();
-  IONode* node = arena_push(a, sizeof(IONode), AlignOf(IONode), TRUE);
+  Info info1 = {
+      .name = S("sepi"),
+      .age = 38,
+      .meta = {.title = S("mr"), .hidden = {.status = S("SHIT SEPI")}}};
+  Info info2 = {
+      .name = S("matilde"),
+      .age = 27,
+      .meta = {.title = S("mrs"), .hidden = {.status = S("SHIT MATILDE")}}};
 
-  err = io_directory_nested_children(a, str8("/tmp/you/test"), node);
-  if (IO_ERR_SUCCESS != err) {
-    return 1;
-  }
+  list_info_ptr_push_end(&list, &info1);
+  list_info_ptr_push_end(&list, &info2);
 
-  for (U32 index = 0; index < node->children->offset; index++) {
-    IONode* n = array_get(node->children, index);
-    printf("%s\n", n->name.cstr);
-  }
+  Info *pinfo = list_info_ptr_get(&list, 0);
+  Dbg("%s: %d # %s ## %s", CS(pinfo->name), pinfo->age, CS(pinfo->meta.title),
+      CS(pinfo->meta.hidden.status));
 
-  return 0;
+  pinfo = list_info_ptr_get(&list, 1);
+  Dbg("%s: %d # %s ## %s", CS(pinfo->name), pinfo->age, CS(pinfo->meta.title),
+      CS(pinfo->meta.hidden.status));
+
+  ListInfoPtrNode *node = list_info_ptr_pop_end(&list);
+  Dbg("%s: %d # %s ## %s", CS(node->data->name), node->data->age,
+      CS(node->data->meta.title), CS(node->data->meta.hidden.status));
+
+  node = list_info_ptr_pop_end(&list);
+  Dbg("%s: %d # %s ## %s", CS(node->data->name), node->data->age,
+      CS(node->data->meta.title), CS(node->data->meta.hidden.status));
+
+  list_info_ptr_clean(&list);
+  arena_destroy(arena);
+  Dbg("=== %s() ===\n", __func__);
 }
 
-int main(Nothing) {
-  int res = 0;
+/* ****************************************** */
+void tree_value() {
+  Arena *arena = arena_create();
+  TreeInfo tree = tree_info_make(arena);
 
-  // res = test_01();
-  // if (res) {
-  //   goto cleanup;
-  // }
+  Info info1 = {
+      .name = S("sepi"),
+      .age = 38,
+      .meta = {.title = S("mr"), .hidden = {.status = S("SHIT SEPI")}}};
+  Info info2 = {
+      .name = S("matilde"),
+      .age = 27,
+      .meta = {.title = S("mrs"), .hidden = {.status = S("SHIT MATILDE")}}};
+  Info info3 = {
+      .name = S("eden"),
+      .age = 38,
+      .meta = {.title = S("mrs"), .hidden = {.status = S("SHIT EDEN")}}};
 
-  // res = test_02();
-  // if (res) {
-  //   goto cleanup;
-  // }
+  TreeInfoNode *tin1 = tree_info_push(&tree, &tree.root, info1);
+  TreeInfoNode *tin2 = tree_info_push(&tree, tin1, info2);
+  TreeInfoNode *tin3 = tree_info_push(&tree, tin2, info3);
+  Ignore(tin3);
 
-  // res = test_03();
-  // if (res) {
-  //   goto cleanup;
-  // }
+  Info vinfo = tree_info_node_get(&tree.root, 0);
+  Dbg("%s: %d # %s ## %s", CS(vinfo.name), vinfo.age, CS(vinfo.meta.title),
+      CS(vinfo.meta.hidden.status));
 
-  // res = test_04();
-  // if (res) {
-  //   goto cleanup;
-  // }
+  vinfo = tree_info_node_get(tin1, 0);
+  Dbg("%s: %d # %s ## %s", CS(vinfo.name), vinfo.age, CS(vinfo.meta.title),
+      CS(vinfo.meta.hidden.status));
 
-  // res = test_05();
-  // if (res) {
-  //   goto cleanup;
-  // }
+  vinfo = tree_info_node_get(tin2, 0);
+  Dbg("%s: %d # %s ## %s", CS(vinfo.name), vinfo.age, CS(vinfo.meta.title),
+      CS(vinfo.meta.hidden.status));
 
-  res = test_06();
-  if (res) {
-    goto cleanup;
+  arena_destroy(arena);
+  Dbg("=== %s() ===\n", __func__);
+}
+
+/* ****************************************** */
+void tree_pointer() {
+  Arena *arena = arena_create();
+  TreeInfoPtr tree = tree_info_ptr_make(arena);
+
+  Info info1 = {
+      .name = S("sepi"),
+      .age = 38,
+      .meta = {.title = S("mr"), .hidden = {.status = S("SHIT SEPI")}}};
+  Info info2 = {
+      .name = S("matilde"),
+      .age = 27,
+      .meta = {.title = S("mrs"), .hidden = {.status = S("SHIT MATILDE")}}};
+  Info info3 = {
+      .name = S("eden"),
+      .age = 38,
+      .meta = {.title = S("mrs"), .hidden = {.status = S("SHIT EDEN")}}};
+
+  TreeInfoPtrNode *tin1 = tree_info_ptr_push(&tree, &tree.root, &info1);
+  TreeInfoPtrNode *tin2 = tree_info_ptr_push(&tree, tin1, &info2);
+  TreeInfoPtrNode *tin3 = tree_info_ptr_push(&tree, tin2, &info3);
+  Ignore(tin3);
+
+  Info *pinfo = tree_info_ptr_node_get(&tree.root, 0);
+  Dbg("%s: %d # %s ## %s", CS(pinfo->name), pinfo->age, CS(pinfo->meta.title),
+      CS(pinfo->meta.hidden.status));
+
+  pinfo = tree_info_ptr_node_get(tin1, 0);
+  Dbg("%s: %d # %s ## %s", CS(pinfo->name), pinfo->age, CS(pinfo->meta.title),
+      CS(pinfo->meta.hidden.status));
+
+  pinfo = tree_info_ptr_node_get(tin2, 0);
+  Dbg("%s: %d # %s ## %s", CS(pinfo->name), pinfo->age, CS(pinfo->meta.title),
+      CS(pinfo->meta.hidden.status));
+
+  arena_destroy(arena);
+  Dbg("=== %s() ===\n", __func__);
+}
+
+/* ****************************************** */
+void map_value() {
+  Arena *arena = arena_create();
+  MapInfo map = map_info_make(arena, 64);
+
+  Info info1 = {
+      .name = S("sepi"),
+      .age = 38,
+      .meta = {.title = S("mr"), .hidden = {.status = S("SHIT SEPI")}}};
+  Info info2 = {
+      .name = S("matilde"),
+      .age = 27,
+      .meta = {.title = S("mrs"), .hidden = {.status = S("SHIT MATILDE")}}};
+  Info info3 = {
+      .name = S("eden"),
+      .age = 38,
+      .meta = {.title = S("mrs"), .hidden = {.status = S("SHIT EDEN")}}};
+
+  map_info_push(&map, S("sepi"), info1);
+  map_info_push(&map, S("matilde"), info2);
+  map_info_push(&map, S("eden"), info3);
+
+  Info vinfo = map_info_find(&map, S("matilde"));
+  Dbg("%s: %d # %s ## %s", CS(vinfo.name), vinfo.age, CS(vinfo.meta.title),
+      CS(vinfo.meta.hidden.status));
+
+  vinfo = map_info_find(&map, S("sepi"));
+  Dbg("%s: %d # %s ## %s", CS(vinfo.name), vinfo.age, CS(vinfo.meta.title),
+      CS(vinfo.meta.hidden.status));
+
+  vinfo = map_info_find(&map, S("eden"));
+  Dbg("%s: %d # %s ## %s", CS(vinfo.name), vinfo.age, CS(vinfo.meta.title),
+      CS(vinfo.meta.hidden.status));
+
+  vinfo = map_info_find(&map, S("DICK"));
+  Dbg("%s: %d # %s ## %s", CS(vinfo.name), vinfo.age, CS(vinfo.meta.title),
+      CS(vinfo.meta.hidden.status));
+
+  vinfo = map_info_pop(&map, S("eden"));
+  Dbg("%s: %d # %s ## %s", CS(vinfo.name), vinfo.age, CS(vinfo.meta.title),
+      CS(vinfo.meta.hidden.status));
+
+  vinfo = map_info_find(&map, S("eden"));
+  Dbg("%s: %d # %s ## %s", CS(vinfo.name), vinfo.age, CS(vinfo.meta.title),
+      CS(vinfo.meta.hidden.status));
+
+  map_info_clean(&map);
+  arena_destroy(arena);
+  Dbg("=== %s() ===\n", __func__);
+}
+
+/* ****************************************** */
+void map_pointer() {
+  Arena *arena = arena_create();
+  MapInfoPtr map = map_info_ptr_make(arena, 64);
+
+  Info info1 = {
+      .name = S("sepi"),
+      .age = 38,
+      .meta = {.title = S("mr"), .hidden = {.status = S("SHIT SEPI")}}};
+  Info info2 = {
+      .name = S("matilde"),
+      .age = 27,
+      .meta = {.title = S("mrs"), .hidden = {.status = S("SHIT MATILDE")}}};
+  Info info3 = {
+      .name = S("eden"),
+      .age = 38,
+      .meta = {.title = S("mrs"), .hidden = {.status = S("SHIT EDEN")}}};
+
+  map_info_ptr_push(&map, S("sepi"), &info1);
+  map_info_ptr_push(&map, S("matilde"), &info2);
+  map_info_ptr_push(&map, S("eden"), &info3);
+
+  Info *pinfo = map_info_ptr_find(&map, S("matilde"));
+  Dbg("%s: %d # %s ## %s", CS(pinfo->name), pinfo->age, CS(pinfo->meta.title),
+      CS(pinfo->meta.hidden.status));
+
+  pinfo = map_info_ptr_find(&map, S("sepi"));
+  Dbg("%s: %d # %s ## %s", CS(pinfo->name), pinfo->age, CS(pinfo->meta.title),
+      CS(pinfo->meta.hidden.status));
+
+  pinfo = map_info_ptr_find(&map, S("eden"));
+  Dbg("%s: %d # %s ## %s", CS(pinfo->name), pinfo->age, CS(pinfo->meta.title),
+      CS(pinfo->meta.hidden.status));
+
+  pinfo = map_info_ptr_find(&map, S("DICK"));
+  if (pinfo) {
+    Dbg("%s: %d # %s ## %s", CS(pinfo->name), pinfo->age, CS(pinfo->meta.title),
+        CS(pinfo->meta.hidden.status));
   }
 
-cleanup:
-  return res;
+  pinfo = map_info_ptr_pop(&map, S("eden"));
+  Dbg("%s: %d # %s ## %s", CS(pinfo->name), pinfo->age, CS(pinfo->meta.title),
+      CS(pinfo->meta.hidden.status));
+
+  pinfo = map_info_ptr_find(&map, S("eden"));
+  if (pinfo) {
+    Dbg("%s: %d # %s ## %s", CS(pinfo->name), pinfo->age, CS(pinfo->meta.title),
+        CS(pinfo->meta.hidden.status));
+  }
+
+
+  arena_destroy(arena);
+  Dbg("=== %s() ===\n", __func__);
+}
+
+/* ****************************************** */
+int main() {
+  // stack_value();
+  // stack_pointer();
+  // array_value();
+  // array_pointer();
+  // list_value();
+  // list_pointer();
+  // tree_value();
+  // tree_pointer();
+
+  map_value();
+  map_pointer();
+  return 0;
 }

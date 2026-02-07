@@ -14,7 +14,7 @@ GCC_FLAGS := -std=c11 -g3 -O0  -DDEBUG $(GCC_WARNS) $(GCC_SAN) $(SEPI_LIBS)
 FILC_FLAGS := -std=c11 -g3 -O0  -DDEBUG $(GCC_WARNS) $(SEPI_LIBS)
 OUT := out
 
-all: 11
+all: 04
 
 san:
 	@$(CC) $(GCC_FLAGS) -o $(OUT) 02.c
@@ -22,49 +22,24 @@ san:
 filc:
 	@/opt/filc/build/bin/filcc $(FILC_FLAGS) -o $(OUT) 02.c
 
+macro:
+	@$(CC) $(GCC_FLAGS) -o $(OUT) MACRO.c
+	@./out
+
 01:
-	@echo "nothing"
+	@$(CC) $(GCC_FLAGS) -o $(OUT) 01.c
+	@./out
 
 02:
-	@echo "nothing"
+	@$(CC) $(GCC_FLAGS) -o $(OUT) 02.c
+	@./out
 
 03:
-	@lua 03.lua
+	@$(CC) $(GCC_FLAGS) -o $(OUT) 03.c
+	@./out
 
 04:
 	@$(CC) $(GCC_FLAGS) -o $(OUT) 04.c
-	@./out
-
-05:
-	@$(CC) $(GCC_FLAGS) -o $(OUT) 05.c
-	@./out
-
-06:
-	@$(CC) $(GCC_FLAGS) -o $(OUT) 06.c
-	@./out
-
-07:
-	@$(CC) $(GCC_FLAGS) -o $(OUT) 07.c
-	@./out
-
-08:
-	@$(CC) $(GCC_FLAGS) -o $(OUT) 08.c
-	@./out
-
-09:
-	@$(CC) $(GCC_FLAGS) -o $(OUT) 09.c
-	@./out
-
-10:
-	@$(CC) $(GCC_FLAGS) -o $(OUT) 10.c
-	@./out
-
-11:
-	@$(CC) $(GCC_FLAGS) -o $(OUT) 11.c
-	@./out
-
-12:
-	@$(CC) $(GCC_FLAGS) -o $(OUT) 12.c
 	@./out
 
 exec:

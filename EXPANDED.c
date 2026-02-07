@@ -2,160 +2,149 @@
 typedef struct {
   Str8 name;
   U32 age;
+  struct {
+    Str8 title;
+    struct {
+      Str8 status;
+    } hidden;
+  } meta;
 } Info;
-
-typedef struct StackInfoNode StackInfoNode;
-struct StackInfoNode {
-  Info val;
-  StackInfoNode *previous;
+typedef struct MapInfoPtrNode MapInfoPtrNode;
+struct MapInfoPtrNode {
+  MapInfoPtrNode *next;
+  Str8 key;
+  Info *value;
 };
-typedef struct StackInfo StackInfo;
-struct StackInfo {
+typedef struct MapInfoPtrList MapInfoPtrList;
+struct MapInfoPtrList {
+  MapInfoPtrNode *first;
+  MapInfoPtrNode *last;
+};
+typedef struct MapInfoPtr MapInfoPtr;
+struct MapInfoPtr {
   U64 length;
+  U64 capacity;
+  MapInfoPtrList *list;
+  MapInfoPtrList free_list;
   Arena *arena;
-  StackInfoNode *top;
 };
-StackInfo stack_info_init(Arena *arena) {
+Nothing map_info_ptr_list_concat_in_place(MapInfoPtrList *to,
+                                          MapInfoPtrList *from) {
   ;
-  StackInfo stack = {.arena = arena, .length = 0, .top = 0};
-  return stack;
+  if (from->first) {
+    if (to->first) {
+      to->last->next = from->first;
+      to->last = from->last;
+    } else {
+      to->first = from->first;
+      to->last = from->last;
+    }
+    __builtin___memset_chk(((from)), 0, (sizeof(*(from))),
+                           __builtin_object_size(((from)), 0));
+  };
 }
-Nothing stack_info_push(StackInfo *stack, Info val) {
+MapInfoPtrNode *map_info_ptr_list_pop(MapInfoPtrList *list) {
   ;
-  StackInfoNode *node = arena_push(stack->arena, sizeof(StackInfoNode),
-                                   __alignof(StackInfoNode), 0);
-  node->val = val;
-  node->previous = stack->top;
-  stack->top = node;
-  stack->length++;
-  ;
+  MapInfoPtrNode *node = list->first;
+  if (list->first == list->last) {
+    list->first = 0;
+    list->last = 0;
+  } else {
+    list->first = list->first->next;
+  };
+  return node;
 }
-Info stack_info_pop(StackInfo *stack) {
+U64 map_info_ptr_hasher(Str8 str) {
+  return rapidhash_withSeed((str).cstr, (str).length, 1987);
+}
+MapInfoPtr map_info_ptr_make(Arena *arena, U64 capacity) {
   ;
-  Info val = {0};
-  if (!stack->length) {
-    goto cleanup;
+  MapInfoPtr map = {
+      .capacity = capacity,
+      .list = (MapInfoPtrList *)arena_push(
+          (arena), sizeof(MapInfoPtrList) * (capacity),
+          (((8) > (__alignof(MapInfoPtrList)) ? (8)
+                                              : (__alignof(MapInfoPtrList)))),
+          (0)),
+      .arena = arena,
+  };
+  ;
+  return map;
+}
+Nothing map_info_ptr_clean(MapInfoPtr *map) {
+  ;
+  map->length = 0;
+  for (U64 i = 0; i < map->capacity; ++i) {
+    map_info_ptr_list_concat_in_place(&map->free_list, &map->list[i]);
+  };
+}
+MapInfoPtrNode *map_info_ptr_push(MapInfoPtr *map, Str8 key, Info *value) {
+  ;
+  MapInfoPtrNode *map_node;
+  U64 hash = map_info_ptr_hasher(key);
+  if (map->free_list.first != 0) {
+    map_node = map_info_ptr_list_pop(&map->free_list);
+  } else {
+    map_node = (MapInfoPtrNode *)arena_push(
+        (map->arena), sizeof(MapInfoPtrNode) * (1),
+        (((8) > (__alignof(MapInfoPtrNode)) ? (8)
+                                            : (__alignof(MapInfoPtrNode)))),
+        (0));
   }
-  StackInfoNode *old_top = stack->top;
-  val = old_top->val;
-  stack->top = old_top->previous;
-  old_top->previous = 0;
-  stack->length--;
-cleanup:;
-  return val;
-}
-Nothing stack_info_deinit(StackInfo *stack) {
-  ;
-  for (; stack->length > 0;) {
-    stack_info_pop(stack);
+  map_node->next = 0;
+  map_node->key = key;
+  map_node->value = value;
+  U64 i = hash % map->capacity;
+  if (map->list[i].first == 0) {
+    map->list[i].first = map->list[i].last = map_node;
+    map_node->next = 0;
+  } else {
+    map->list[i].last->next = map_node;
+    map->list[i].last = map_node;
+    map_node->next = 0;
   }
-  stack->arena = 0;
-  stack->length = 0;
-  stack->top = 0;
+  map->length += 1;
   ;
+  return map_node;
 }
-U32 stack_info_length(StackInfo *stack) { return stack->length; };
-
-/////////////////////////////////////////////////////////////
-
-typedef struct StackInfoPtrNode StackInfoPtrNode;
-struct StackInfoPtrNode {
-  Info *val;
-  StackInfoPtrNode *previous;
+Info *map_info_ptr_find(MapInfoPtr *map, Str8 key) {
+  ;
+  U64 hash = map_info_ptr_hasher(key);
+  U64 i = hash % map->capacity;
+  MapInfoPtrList *list = map->list + i;
+  for (MapInfoPtrNode *node = list->first; node != 0; node = node->next) {
+    if (str8_equal(node->key, key, 0)) {
+      ;
+      return node->value;
+    }
+  };
+  return (Info *){};
+}
+Info *map_info_ptr_pop(MapInfoPtr *map, Str8 key) {
+  ;
+  Info *value;
+  U64 hash = map_info_ptr_hasher(key);
+  U64 i = hash % map->capacity;
+  MapInfoPtrList *list = map->list + i;
+  MapInfoPtrNode *itr = list->first;
+  MapInfoPtrNode *prv = itr;
+  Bool single = list->first == list->last ? 1 : 0;
+  for (; itr != 0; prv = itr, itr = itr->next) {
+    if (str8_equal(itr->key, key, 0)) {
+      prv->next = itr->next;
+      value = itr->value;
+      __builtin___memset_chk(((itr)), 0, (sizeof(*(itr))),
+                             __builtin_object_size(((itr)), 0));
+      if (single) {
+        __builtin___memset_chk(((list)), 0, (sizeof(*(list))),
+                               __builtin_object_size(((list)), 0));
+      }
+      map->length--;
+      ;
+      return value;
+    }
+  };
+  return (Info *){};
 };
-typedef struct StackInfoPtr StackInfoPtr;
-struct StackInfoPtr {
-  U64 length;
-  Arena *arena;
-  StackInfoPtrNode *top;
-};
-StackInfoPtr stack_info_ptr_init(Arena *arena) {
-  ;
-  StackInfoPtr stack = {.arena = arena, .length = 0, .top = 0};
-  return stack;
-}
-Nothing stack_info_ptr_push(StackInfoPtr *stack, Info *val) {
-  ;
-  StackInfoPtrNode *node = arena_push(stack->arena, sizeof(StackInfoPtrNode),
-                                      __alignof(StackInfoPtrNode), 0);
-  node->val = val;
-  node->previous = stack->top;
-  stack->top = node;
-  stack->length++;
-  ;
-}
-Info *stack_info_ptr_pop(StackInfoPtr *stack) {
-  ;
-  Info *val = {0};
-  if (!stack->length) {
-    goto cleanup;
-  }
-  StackInfoPtrNode *old_top = stack->top;
-  val = old_top->val;
-  stack->top = old_top->previous;
-  old_top->previous = 0;
-  stack->length--;
-cleanup:;
-  return val;
-}
-Nothing stack_info_ptr_deinit(StackInfoPtr *stack) {
-  ;
-  for (; stack->length > 0;) {
-    stack_info_ptr_pop(stack);
-  }
-  stack->arena = 0;
-  stack->length = 0;
-  stack->top = 0;
-  ;
-}
-U32 stack_info_ptr_length(StackInfoPtr *stack) { return stack->length; };
 
-void stack_value() {
-  Arena *arena = arena_create_(&(ArenaParams){
-      .requested_reserve_size = (((U64)(64)) << 20),
-      .requested_commit_size = (((U64)(64)) << 20),
-      .caller_file_name = "11.c",
-      .caller_file_line = 22,
-  });
-  StackInfo stack = stack_info_init(arena);
-
-  Info info1 = {.name = _Generic(("sepi"),
-                    Str8: ("sepi"),
-                    Str: str8((CStr)("sepi")),
-                    CStr: str8(("sepi")),
-                    default: str8((CStr)("sepi"))),
-                .age = 38};
-  Info info2 = {.name = _Generic(("matilde"),
-                    Str8: ("matilde"),
-                    Str: str8((CStr)("matilde")),
-                    CStr: str8(("matilde")),
-                    default: str8((CStr)("matilde"))),
-                .age = 27};
-
-  stack_info_push(&stack, info1);
-  stack_info_push(&stack, info2);
-
-  Info vinfo = stack_info_pop(&stack);
-  ;
-
-  vinfo = stack_info_pop(&stack);
-  ;
-
-  stack_info_deinit(&stack);
-}
-
-void stack_pointer() {
-  Arena *arena = arena_create_(&(ArenaParams){
-      .requested_reserve_size = (((U64)(64)) << 20),
-      .requested_commit_size = (((U64)(64)) << 20),
-      .caller_file_name = "11.c",
-      .caller_file_line = 42,
-  });
-  StackInfoPtr stack = stack_info_ptr_create(arena);
-# 58 "11.c"
-}
-
-int main() {
-  stack_value();
-  return 0;
-}
+int main() { return 0; }

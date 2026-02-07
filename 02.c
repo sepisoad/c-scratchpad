@@ -1,55 +1,190 @@
-// LD_PRELOAD=/opt/gcc/15.2.0/lib64/libasan.so ./out
-
-#include <stdlib.h>
 #include <stdio.h>
+#include <time.h>
 
+#define SEPI_ENDIAN_IMPLEMENTATION
 #define SEPI_PLATFORM_IMPLEMENTATION
 #define SEPI_STRING_IMPLEMENTATION
 #define SEPI_ARENA_IMPLEMENTATION
+#define SEPI_ARRAY_IMPLEMENTATION
+#define SEPI_LIST_IMPLEMENTATION
+#define SEPI_STACK_IMPLEMENTATION
+#define SEPI_IO_IMPLEMENTATION
 #define SEPI_HASHMAP_IMPLEMENTATION
 
-#include "deps/sepi/hashmap.h"
+#include <sepi/base.h>
+#include <sepi/array.h>
+#include <sepi/hashmap.h>
+#include <sepi/io.h>
 
-int
-main(void) {
-  Arena* a = arena_alloc(.requested_reserve_size = 256,
-                         .requested_commit_size = 256);
+int test_01() {
+  Bool is_file = FALSE;
 
-  HashMap* hm = hashmap_init(a, 256);
-
-  hashmap_push_u32(a, hm, str8("sepi"), 38);
-  hashmap_push_u32(a, hm, str8("yasin"), 43);
-  hashmap_push_u32(a, hm, str8("amin"), 45);
-  hashmap_push_u32(a, hm, str8("mooa"), 67);
-  hashmap_push_u32(a, hm, str8("booa"), 71);
-
-  Str8* keys = hashmap_keys(a, hm);
-
-  for (U64 i = 0; i < hm->count; i++) {
-    HashMapKV* kv = hashmap_find(hm, keys[i]);
-    printf("%5s:  %d\n", kv->k_str.cstr, kv->v_u32);
+  IOError err = io_is_file(str8("makefile"), &is_file);
+  if (IO_ERR_SUCCESS != err) {
+    return 1;
   }
 
-  printf("-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\n");
-
-  HashMapKV kv2 = hashmap_pop(hm, str8("yasin"));
-  printf("%5s:  %d\n", kv2.k_str.cstr, kv2.v_u32);
-
-  printf("-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\n");
-
-  kv2 = hashmap_pop(hm, str8("yasin"));
-  printf("%5s:  %d\n", kv2.k_str.cstr, kv2.v_u32);
-
-  printf("-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\n");
-
-  keys = hashmap_keys(a, hm);
-  for (U64 i = 0; i < hm->count; i++) {
-    HashMapKV* kv = hashmap_find(hm, keys[i]);
-    if (!kv) continue;
-    printf("%5s:  %d\n", kv->k_str.cstr, kv->v_u32);
+  if (FALSE == is_file) {
+    return 1;
   }
 
-  hashmap_purge(hm);
-  arena_release(a);
+  // ===================
+
+  err = io_is_file(str8("."), &is_file);
+  if (IO_ERR_SUCCESS != err) {
+    return 1;
+  }
+
+  if (TRUE == is_file) {
+    return 1;
+  }
+
+  // ===================
+
   return 0;
+}
+
+int test_02() {
+  Bool is_dir = FALSE;
+
+  IOError err = io_is_directory(str8("makefile"), &is_dir);
+  if (IO_ERR_SUCCESS != err) {
+    return 1;
+  }
+
+  if (TRUE == is_dir) {
+    return 1;
+  }
+
+  // ===================
+
+  err = io_is_directory(str8("."), &is_dir);
+  if (IO_ERR_SUCCESS != err) {
+    return 1;
+  }
+
+  if (FALSE == is_dir) {
+    return 1;
+  }
+
+  // ===================
+
+  return 0;
+}
+
+int test_03() {
+  IOError err = io_make_directory(str8("/Users/sepi/Projects/sepi/c-scratchpad/SucMyC0ck"));
+  if (IO_ERR_SUCCESS != err) {
+    return 1;
+  }
+
+  err = io_make_directory(str8("./PooPoo"));
+  if (IO_ERR_SUCCESS != err) {
+    return 1;
+  }
+
+  err = io_make_directory(str8("ChooChoo"));
+  if (IO_ERR_SUCCESS != err) {
+    return 1;
+  }
+
+  return 0;
+}
+
+int test_04() {
+  IOError err = 0;
+
+  Arena* a = arena_create();
+
+  err = io_make_nested_directory(str8_clone(a, str8("DIR1/DIR2/DIR3")));
+  if (IO_ERR_SUCCESS != err) {
+    return 1;
+  }
+
+  err = io_make_nested_directory(str8_clone(a, str8("./DIR1/DIR4/DIR5")));
+  if (IO_ERR_SUCCESS != err) {
+    return 1;
+  }
+
+  err = io_make_nested_directory(str8_clone(a, str8("/Users/sepi/Projects/sepi/c-scratchpad/DIR1/DIR6/DIR7")));
+  if (IO_ERR_SUCCESS != err) {
+    return 1;
+  }
+
+  return 0;
+}
+
+int test_05() {
+  IOError err = 0;
+
+  Arena* a = arena_create();
+  IONode* node = arena_push(a, sizeof(IONode), AlignOf(IONode), TRUE);
+
+  err = io_directory_children(a, str8("/tmp/you"), node);
+  if (IO_ERR_SUCCESS != err) {
+    return 1;
+  }
+
+  for (U32 index = 0; index < node->children->offset; index++) {
+    IONode* n = array_get(node->children, index);
+    printf("%s\n", n->name.cstr);
+  }
+
+  return 0;
+}
+
+int test_06() {
+  IOError err = 0;
+
+  Arena* a = arena_create();
+  IONode* node = arena_push(a, sizeof(IONode), AlignOf(IONode), TRUE);
+
+  err = io_directory_nested_children(a, str8("/tmp/you/test"), node);
+  if (IO_ERR_SUCCESS != err) {
+    return 1;
+  }
+
+  for (U32 index = 0; index < node->children->offset; index++) {
+    IONode* n = array_get(node->children, index);
+    printf("%s\n", n->name.cstr);
+  }
+
+  return 0;
+}
+
+int main(Nothing) {
+  int res = 0;
+
+  // res = test_01();
+  // if (res) {
+  //   goto cleanup;
+  // }
+
+  // res = test_02();
+  // if (res) {
+  //   goto cleanup;
+  // }
+
+  // res = test_03();
+  // if (res) {
+  //   goto cleanup;
+  // }
+
+  // res = test_04();
+  // if (res) {
+  //   goto cleanup;
+  // }
+
+  // res = test_05();
+  // if (res) {
+  //   goto cleanup;
+  // }
+
+  res = test_06();
+  if (res) {
+    goto cleanup;
+  }
+
+cleanup:
+  return res;
 }

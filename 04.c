@@ -1,6 +1,5 @@
 #include <stdio.h>
 
-#define SEPI_PLATFORM_IMPLEMENTATION
 #define SEPI_ARENA_IMPLEMENTATION
 #define SEPI_STRING_IMPLEMENTATION
 
@@ -256,17 +255,29 @@ void tree_value() {
   TreeInfoNode *tin3 = tree_info_push(&tree, tin2, info3);
   Ignore(tin3);
 
-  Info vinfo = tree_info_node_get(&tree.root, 0);
+  Info vinfo = tree_info_node_get_data(&tree.root, 0);
   Dbg("%s: %d # %s ## %s", CS(vinfo.name), vinfo.age, CS(vinfo.meta.title),
       CS(vinfo.meta.hidden.status));
 
-  vinfo = tree_info_node_get(tin1, 0);
+  vinfo = tree_info_node_get_data(tin1, 0);
   Dbg("%s: %d # %s ## %s", CS(vinfo.name), vinfo.age, CS(vinfo.meta.title),
       CS(vinfo.meta.hidden.status));
 
-  vinfo = tree_info_node_get(tin2, 0);
+  vinfo = tree_info_node_get_data(tin2, 0);
   Dbg("%s: %d # %s ## %s", CS(vinfo.name), vinfo.age, CS(vinfo.meta.title),
       CS(vinfo.meta.hidden.status));
+
+  TreeInfoNode* tin = tree_info_node_get_child(&tree.root, 0);
+  Dbg("%s: %d # %s ## %s", CS(tin->data.name), tin->data.age, CS(tin->data.meta.title),
+      CS(tin->data.meta.hidden.status));
+
+  tin = tree_info_node_get_child(tin1, 0);
+  Dbg("%s: %d # %s ## %s", CS(tin->data.name), tin->data.age, CS(tin->data.meta.title),
+      CS(tin->data.meta.hidden.status));
+
+  tin = tree_info_node_get_child(tin2, 0);
+  Dbg("%s: %d # %s ## %s", CS(tin->data.name), tin->data.age, CS(tin->data.meta.title),
+      CS(tin->data.meta.hidden.status));
 
   arena_destroy(arena);
   Dbg("=== %s() ===\n", __func__);
@@ -295,17 +306,29 @@ void tree_pointer() {
   TreeInfoPtrNode *tin3 = tree_info_ptr_push(&tree, tin2, &info3);
   Ignore(tin3);
 
-  Info *pinfo = tree_info_ptr_node_get(&tree.root, 0);
+  Info *pinfo = tree_info_ptr_node_get_data(&tree.root, 0);
   Dbg("%s: %d # %s ## %s", CS(pinfo->name), pinfo->age, CS(pinfo->meta.title),
       CS(pinfo->meta.hidden.status));
 
-  pinfo = tree_info_ptr_node_get(tin1, 0);
+  pinfo = tree_info_ptr_node_get_data(tin1, 0);
   Dbg("%s: %d # %s ## %s", CS(pinfo->name), pinfo->age, CS(pinfo->meta.title),
       CS(pinfo->meta.hidden.status));
 
-  pinfo = tree_info_ptr_node_get(tin2, 0);
+  pinfo = tree_info_ptr_node_get_data(tin2, 0);
   Dbg("%s: %d # %s ## %s", CS(pinfo->name), pinfo->age, CS(pinfo->meta.title),
       CS(pinfo->meta.hidden.status));
+
+  TreeInfoPtrNode* tin = tree_info_ptr_node_get_child(&tree.root, 0);
+  Dbg("%s: %d # %s ## %s", CS(tin->data->name), tin->data->age, CS(tin->data->meta.title),
+      CS(tin->data->meta.hidden.status));
+
+  tin = tree_info_ptr_node_get_child(tin1, 0);
+  Dbg("%s: %d # %s ## %s", CS(tin->data->name), tin->data->age, CS(tin->data->meta.title),
+      CS(tin->data->meta.hidden.status));
+
+  tin = tree_info_ptr_node_get_child(tin2, 0);
+  Dbg("%s: %d # %s ## %s", CS(tin->data->name), tin->data->age, CS(tin->data->meta.title),
+      CS(tin->data->meta.hidden.status));
 
   arena_destroy(arena);
   Dbg("=== %s() ===\n", __func__);
@@ -419,15 +442,14 @@ void map_pointer() {
 
 /* ****************************************** */
 int main() {
-  // stack_value();
-  // stack_pointer();
-  // array_value();
-  // array_pointer();
-  // list_value();
-  // list_pointer();
-  // tree_value();
-  // tree_pointer();
-
+  stack_value();
+  stack_pointer();
+  array_value();
+  array_pointer();
+  list_value();
+  list_pointer();
+  tree_value();
+  tree_pointer();
   map_value();
   map_pointer();
   return 0;

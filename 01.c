@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#define SEPI_PLATFORM_IMPLEMENTATION
 #define SEPI_STRING_IMPLEMENTATION
 #define SEPI_ARENA_IMPLEMENTATION
 #define SEPI_HASHMAP_IMPLEMENTATION

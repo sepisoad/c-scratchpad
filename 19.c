@@ -14,63 +14,43 @@
 #define APP_CONTEXT_UI 1
 #define APP_CONTEXT_EXTRA 2
 
-static atomic U16 atomic_age;
-local SyncLock lock;
+SyncTokens tokens;
 Str name;
 
 RawPtr test_fn(RawPtr args) {
-  dbg("age: '%d'", atomic_age);
-  atomic_store(&atomic_age, 1997);
-  dbg("age: '%d'", atomic_age);
-
-  Str *nameptr = (Str *)args;
-  Arena *arena = context_arena();
-  Str clone = str_clone(arena, *nameptr);
-
-  with_lock(lock) { name = clone; }
-
-  dbg("this is thread '%s'", ZS(name));
-
+  with_tokens(tokens) {
+    sync_thread_sleep(second * 2);
+    Str *nameptr = (Str *)args;
+    dbg("this is thread '%s'", ZS(*nameptr));
+  }
   return 0;
 }
 
 int main() {
   App app = app_create(APP_CONTEXT_MAIN, 0);
-
   Arena *arena = context_arena();
-
   Str name1 = str_clone(arena, S("thread 01"));
   Str name2 = str_clone(arena, S("thread 02"));
+  Str name3 = str_clone(arena, S("thread 03"));
+  Str name4 = str_clone(arena, S("thread 04"));
 
-  dbg("age: '%d'", atomic_age);
-  atomic_init(&atomic_age, 1987);
-  dbg("age: '%d'", atomic_age);
-
-  lock = sync_lock_create();
-
-  with_lock(lock) { name = S("main"); }
+  tokens = sync_tokens_create(0);
 
   SyncThread *thread1 =
       sync_thread_start(test_fn, (RawPtr)&name1, APP_CONTEXT_UI);
   SyncThread *thread2 =
       sync_thread_start(test_fn, (RawPtr)&name2, APP_CONTEXT_EXTRA);
-
-  dbg("this is thread '%s'", ZS(name));
+  SyncThread *thread3 =
+      sync_thread_start(test_fn, (RawPtr)&name3, APP_CONTEXT_UI);
+  SyncThread *thread4 =
+      sync_thread_start(test_fn, (RawPtr)&name4, APP_CONTEXT_EXTRA);
 
   sync_thread_await(thread1);
   sync_thread_await(thread2);
-  sync_lock_destroy(lock);
+  sync_thread_await(thread3);
+  sync_thread_await(thread4);
 
-  with_scratch(arena) {
-    Str name3 = str_clone(arena, S("Fuck Offfff"));
-
-    with_scratch(arena) {
-      Str name3 = str_clone(arena, S("SUCK MY COCK!"));
-      dbg("testing scratch: '%s'", ZS(name3));
-    };
-
-    dbg("testing scratch: '%s'", ZS(name3));
-  };
+  sync_tokens_destroy(tokens);
 
   app_destroy(app);
   return 0;

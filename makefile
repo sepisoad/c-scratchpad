@@ -14,7 +14,7 @@ else
 endif
 
 
-all: 18
+all: 19
 
 01:
 	@$(CC) $(GCC_FLAGS) $(SEPI_LIBS) -o $(OUT) 01.c
@@ -86,4 +86,8 @@ all: 18
 
 18:
 	@$(CC) $(GCC_FLAGS) $(SEPI_LIBS) -o $(OUT) 18.c
+	@./out
+
+19:
+	@$(CC) $(GCC_FLAGS) $(SEPI_LIBS) -o $(OUT) 19.c
 	@./out
